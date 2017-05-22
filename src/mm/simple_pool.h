@@ -122,4 +122,3 @@ class simple_pool_v3 {
 };
 
 
-#endif
