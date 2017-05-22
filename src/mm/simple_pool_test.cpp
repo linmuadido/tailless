@@ -1,4 +1,5 @@
 #include "./simple_pool.h"
+#include <algorithm>
 #include <iostream>
 using namespace std;
 
@@ -36,6 +37,52 @@ using pool = simple_pool<sizeof(tut),SZ,TEST_ALIGN>;
 static pool* pp = NULL;
 inline static tut* once (pool& p) {
   return (tut*)p.alloc();
+}
+void test () {
+  pool p;
+  tut** arr = new tut*[SZ];
+  cout<<"[before freeing]"<<endl;
+  for(int i=0;i<SZ;++i) {
+    arr[i] = once(p);
+    if(arr[i]) continue;
+    cout<<"test failed: cannot get as many entries as expected" << endl; return;
+  }
+  for(int i=0;i<SZ;++i) {
+    if(!p.alloc()) continue;
+    cout<<"test failed: too many entries " << endl;return;
+  }
+  sort(arr,arr+SZ);
+  for(int i=1;i<SZ;++i) {
+    const size_t hop = TEST_ALIGN ? (sizeof(tut)+TEST_ALIGN-1)/TEST_ALIGN*TEST_ALIGN : sizeof(tut);
+    if(uintptr_t(arr[i]) == uintptr_t(arr[i-1])+hop) continue;
+    cout<<"test failed: memeory not contigous" << endl;return;
+  }
+  for(int i=0;i<SZ;++i) {
+    int j = rand() % SZ;
+    auto tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+  for(int i=0;i<SZ;++i) {
+    p.free(arr[i]);
+  }
+  cout<<"[after freeing]"<<endl;
+  for(int i=0;i<SZ;++i) {
+    arr[i] = once(p);
+    if(arr[i]) continue;
+    cout<<"test failed: cannot get as many entries as expected" << endl; return;
+  }
+  for(int i=0;i<SZ;++i) {
+    if(!p.alloc()) continue;
+    cout<<"test failed: too many entries " << endl;return;
+  }
+  sort(arr,arr+SZ);
+  for(int i=1;i<SZ;++i) {
+    const size_t hop = TEST_ALIGN ? (sizeof(tut)+TEST_ALIGN-1)/TEST_ALIGN*TEST_ALIGN : sizeof(tut);
+    if(uintptr_t(arr[i]) == uintptr_t(arr[i-1])+hop) continue;
+    cout<<"test failed: memeory not contigous" << endl;return;
+  }
+  cout<<"[test finished]"<<endl;
 }
 #endif
 
@@ -85,6 +132,9 @@ int main() {
   if(count != SZ) {
     cout<<"cannot allocate objects as many times as expected...check code" << endl;
   }
+#ifdef VERIFY_POOL
+  test();
+#endif
 #endif
   return 0 ;
 }
