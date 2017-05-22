@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef NDEBUG
+#ifndef NDEBUG
 inline void check_point(const char* filename, const int32_t line) {
   std::cout << filename << " : " << line << '.'<<std::endl;
 }
