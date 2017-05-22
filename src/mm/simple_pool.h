@@ -10,13 +10,17 @@
 
 template<size_t size, size_t num, uint32_t alignment = 0>
 class simple_pool {
+  struct entry {
+    char arr[alignment ? (size+alignment-1) / alignment * alignment : size];
+  };
   struct placeholder {
     int32_t indices[num];
-    char    objects[num][alignment ? (size+alignment-1) / alignment * alignment : size];
+    entry objects[num];
   };
   public:
   simple_pool() {
     chunk_ = (placeholder*) malloc( total() );
+    //SIMD enabled
     for(int i=0;i<num;++i) {
       chunk_->indices[i] = i;
     }
@@ -27,11 +31,18 @@ class simple_pool {
   void* alloc() {
     //design choice : return NULL or fallback?
     if(unlikely(!idx_)) return NULL;
-    return chunk_->objects[ pop() ];
+    return chunk_->objects + pop();
+  }
+  void free(void* x) {
+    int32_t idx = (entry*)(x) - chunk_->objects;
+    return push(idx);
   }
   private:
   int32_t pop() {
     return chunk_->indices[ --idx_ ];
+  }
+  void push(int32_t idx) {
+    chunk_->indices[ idx_++ ] = idx;
   }
   placeholder* chunk_;
   size_t idx_ = num;
@@ -53,7 +64,7 @@ class simple_pool_v2 {
     uintptr_t addr = (uintptr_t)chunk_+total();
     for(int i=num-1;i>=0;--i) {
       addr -= sizeof(placeholder);
-      *(int32_t*)addr = i+1;
+      *(int32_t*)addr = i-1;
     }
   }
   ~simple_pool_v2() {
@@ -63,6 +74,12 @@ class simple_pool_v2 {
     //design choice : return NULL or fallback?
     if(unlikely(idx_<0)) return NULL;
     return chunk_+pop();
+  }
+  void free(void* p) {
+    placeholder* p2 = (placeholder*) p;
+    int32_t idx = p2 - chunk_;
+    p2->next = idx_;
+    idx_ = idx;
   }
   private:
   placeholder* chunk_;
@@ -105,6 +122,11 @@ class simple_pool_v3 {
     auto ret = first_;
     first_ = first_->next;
     return ret != first_ ? ret : NULL;
+  }
+  void free(void* p) {
+    placeholder* p2 = (placeholder*)p;
+    p2->next = first_;
+    first_ = p2;
   }
   private:
   placeholder* chunk_;
