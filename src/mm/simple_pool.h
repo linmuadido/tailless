@@ -3,14 +3,10 @@
 #include <cstdint>
 #include <utility>
 #include <iostream>
-#define CHECK() //cout<<__FILE__<<" : line " << __LINE__ <<endl
+#include "helper/debug.h"
+#include "helper/compiler.h"
   using std::cout;
   using std::endl;
-
-
-
-#define likely(x)       __builtin_expect((x),1)
-#define unlikely(x)     __builtin_expect((x),0)
 
 template<size_t size, size_t num, uint32_t alignment = 0>
 class simple_pool {
@@ -99,7 +95,6 @@ class simple_pool_v3 {
       //chunk_[i].next = chunk_ +i+1;
     }
     dummy_.next = ((placeholder*)addr)->next = &dummy_;
-    CHECK();
   }
   ~simple_pool_v3() {
     free(chunk_);
@@ -114,6 +109,7 @@ class simple_pool_v3 {
   private:
   placeholder* chunk_;
   placeholder* first_;
+  //TODO: space optimization
   placeholder  dummy_;
   private:
   constexpr static size_t total() {
