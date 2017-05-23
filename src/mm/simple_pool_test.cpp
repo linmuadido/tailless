@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iostream>
 using namespace std;
+using namespace leo;
 
 using tut = union {
   int32_t x; // for assignment

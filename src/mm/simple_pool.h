@@ -8,6 +8,7 @@
   using std::cout;
   using std::endl;
 
+namespace leo {
 template<size_t size, size_t num, uint32_t alignment = 0>
 class simple_pool {
   struct entry {
@@ -138,4 +139,4 @@ class simple_pool_v3 {
     return sizeof(placeholder) * num;
   }
 };
-
+}

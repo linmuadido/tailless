@@ -1,0 +1,26 @@
+clock time (init): 170.719 msecs
+clock time (alloc): 172.645 msecs
+[before freeing]
+[after freeing]
+[test finished]
+
+ Performance counter stats for './tmp.out':
+
+      25408.238694 task-clock (msec)         #    0.997 CPUs utilized          
+             3,955 context-switches          #    0.156 K/sec                  
+               371 cpu-migrations            #    0.015 K/sec                  
+           386,423 page-faults               #    0.015 M/sec                  
+    63,299,133,503 cycles                    #    2.491 GHz                     [57.03%]
+    48,694,577,605 stalled-cycles-frontend   #   76.93% frontend cycles idle    [57.26%]
+   <not supported> stalled-cycles-backend  
+    31,367,279,937 instructions              #    0.50  insns per cycle        
+                                             #    1.55  stalled cycles per insn [71.57%]
+     7,371,068,290 branches                  #  290.105 M/sec                   [71.52%]
+       722,996,893 branch-misses             #    9.81% of all branches         [71.50%]
+   <not supported> L1-dcache-loads:HG      
+       880,194,671 L1-dcache-load-misses:HG  #    0.00% of all L1-dcache hits   [71.45%]
+       455,786,419 LLC-loads:HG              #   17.939 M/sec                   [71.25%]
+   <not supported> LLC-load-misses:HG      
+
+      25.488134882 seconds time elapsed
+
