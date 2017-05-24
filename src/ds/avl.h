@@ -6,11 +6,9 @@
 using namespace std;
 
 
-#define FOOTPRINT(msg) cout<<__FILE__<<": at line "<<__LINE__<<' '<<msg<<endl
-#define CHECK() FOOTPRINT("")
-
 
 #define AVL_PROFILE_ROATATION
+#define AVL_PROFILE_INSERTION_BRANCH
 
 namespace leo {
 template<typename type>
@@ -27,8 +25,8 @@ class avl {
 #endif
   }
   bool insert(const type& t) {
-    node** traces[100];
-    char      dirs[100];
+    node**        traces[128];
+    unsigned char dirs[128];
 
     int sz = 0;
     node** n = &root_;
@@ -46,30 +44,32 @@ class avl {
       }
     }
     *n = new node(t,sink(),sink(),1);
+    if(--sz >= 0) {
+      node* n = *(traces[sz]);
+      if(height(n) == 2) return true;
+      n->tag_ += 1;
+    }
 
     while(--sz >= 0) {
-      node*& n = *(traces[sz]);
-      int h = height(n);
-      if(dirs[sz] == 1) {
-        int hh = height(n->r_);
-        int diff = hh - height(n->l_);
-        switch(diff) {
-          case 0: return true;
-          case 1: if(hh < h)return true; ++n->tag_;break;
-          case 2: if(height(n->r_->l_) > height(n->r_->r_)) rotate_to_right(n->r_);rotate_to_left(n); return true;
-          default: break;
-        }
-      } else {
-        int hh = height(n->l_);
-        int diff = hh - height(n->r_);
-        switch(diff) {
-          case 0: return true;
-          case 1: if(hh < h)return true; ++n->tag_;break;
-          case 2: if(height(n->l_->r_) > height(n->l_->l_)) rotate_to_left(n->l_);rotate_to_right(n); return true;
-          default: break;
-        }
+      node* n = *(traces[sz]);
+      int h = height(n->children_[ dirs[sz] ]);
+      int diff = h - height(n->children_[ !dirs[sz] ]);
+      if(diff == 0) return true; // most frequently hit branch
+      if(diff == 1) {
+        ++n->tag_;
+        continue;
       }
+      node*& nref = *(traces[sz]); // useless optimization : put refernce as late as possible
+      if(dirs[sz]) {
+          if(!dirs[sz+1]) rotate_to_right(nref->r_);
+          rotate_to_left(nref);
+      } else {
+          if(dirs[sz+1]) rotate_to_left(nref->l_);
+          rotate_to_right(nref);
+      }
+      return true;
     }
+
     return true;
     //easy implementation...20% slower
     return insert(root_,t);
@@ -110,7 +110,7 @@ class avl {
     n->l_ = tmp->r_;
     tmp->r_ = n;
     n = tmp;
-    updateHeight(n->r_);
+    update_height(n->r_);
     n->tag_ = n->r_->tag_+1;
   }
   static void rotate_to_left(node*& n) {
@@ -122,10 +122,10 @@ class avl {
     n->r_ = tmp->l_;
     tmp->l_ = n;
     n = tmp;
-    updateHeight(n->l_);
+    update_height(n->l_);
     n->tag_ = n->l_->tag_+1;
   }
-  static void updateHeight(node* n) {
+  static void update_height(node* n) {
     int a = height(n->l_);
     int b = height(n->r_);
     if(a<b)a = b;
@@ -143,15 +143,15 @@ class avl {
       if(height(n->r_) > height(n->l_) +1 ) {
         if(height(n->r_->l_) > height(n->r_->r_)) rotate_to_right(n->r_);
         rotate_to_left(n);
-      } else updateHeight(n);
+      } else update_height(n);
     } else {
       if(!insert(n->l_,t))return false;
       if(height(n->l_) > height(n->r_) +1 ) {
         if(height(n->l_->r_) > height(n->l_->l_)) rotate_to_left(n->l_);
         rotate_to_right(n);
-      } else updateHeight(n);
+      } else update_height(n);
     }
-    //updateHeight(n);
+    //update_height(n);
     return true;
   }
   bool erase(node*& n, const type& t) {
@@ -170,13 +170,13 @@ class avl {
       else if(n->r_->l_ == sink()) {
         n->r_->l_ = n->l_;
         n = n->r_;
-        updateHeight(n);
+        update_height(n);
       } else if(n->l_->r_ == sink()) {
         n->l_->r_ = n->r_;
         n = n->l_;
-        updateHeight(n);
+        update_height(n);
       } else {
-        replaceByLeftMost(n->r_->l_,n);
+        replace_byLeftMost(n->r_->l_,n);
         check_n_fix(n->r_);
       }
       check_n_fix(n);
@@ -189,7 +189,7 @@ class avl {
         if(height(n->l_->r_) > height(n->l_->l_)) rotate_to_left(n->l_);
         rotate_to_right(n);
       } else {
-        updateHeight(n);
+        update_height(n);
       }
     } else {
       if(!erase(n->l_,t)) return false;
@@ -197,7 +197,7 @@ class avl {
         if(height(n->r_->l_) > height(n->r_->r_)) rotate_to_right(n->r_);
         rotate_to_left(n);
       } else {
-        updateHeight(n);
+        update_height(n);
       }
     }
       //check_n_fix(n);
@@ -205,7 +205,7 @@ class avl {
   }
   static void check_n_fix(node*& n) {
     if(n==sink())return;
-    updateHeight(n);
+    update_height(n);
     int a = height(n->l_);
     int b = height(n->r_);
     if(a-b >1) {
@@ -216,7 +216,7 @@ class avl {
       rotate_to_left(n);
     }
   }
-  static void replaceByLeftMost(node*& n, node*& top) {
+  static void replace_byLeftMost(node*& n, node*& top) {
     //cout<<n->data_<<endl;
     if(n->l_ == sink()) {
       //cout<<"reaching end: right is ";
@@ -233,7 +233,7 @@ class avl {
     //cout<<"keeping going: right is ";
     //if(n->r_ == NULL) cout<<"(NULL)"<<endl;
     //else cout<<n->r_->data_<<endl;
-    replaceByLeftMost(n->l_,top);
+    replace_byLeftMost(n->l_,top);
     check_n_fix(n);
   }
   static void collect(node* n, vector<type>& result) {
@@ -353,11 +353,11 @@ class bidir_avl {
     node* tmp = n->l_;
     n->l_ = tmp->r_;
     tmp->r_ = n;
-    replaceBy(n,tmp);
+    replace_by(n,tmp);
     n->p_ = tmp;
     n->l_->p_ = n;
 
-    updateHeight(n);
+    update_height(n);
     tmp->tag_ = n->tag_+1;
   }
   void rotate_to_left(node* n) {
@@ -367,11 +367,11 @@ class bidir_avl {
     node* tmp = n->r_;
     n->r_ = tmp->l_;
     tmp->l_ = n;
-    replaceBy(n,tmp);
+    replace_by(n,tmp);
     n->p_ = tmp;
     n->r_->p_ = n;
 
-    updateHeight(n);
+    update_height(n);
     tmp->tag_ = n->tag_+1;
   }
   void promote_rl(node* n) {
@@ -387,7 +387,7 @@ class bidir_avl {
     n->r_ = tmp->l_;
     n->r_->p_ = n;
     tmp->l_ = n;
-    replaceBy(n,tmp);
+    replace_by(n,tmp);
     n->p_ = tmp;
     n->tag_ = tmp->tag_;
     --tmp->r_->tag_;
@@ -406,7 +406,7 @@ class bidir_avl {
     n->l_ = tmp->r_;
     n->l_->p_ = n;
     tmp->r_ = n;
-    replaceBy(n,tmp);
+    replace_by(n,tmp);
     n->p_ = tmp;
     n->tag_ = tmp->tag_;
     --tmp->l_->tag_;
@@ -438,24 +438,24 @@ class bidir_avl {
     }
   }
 
-  static void updateHeight(node* n) {
+  static void update_height(node* n) {
     int a = height(n->l_);
     int b = height(n->r_);
     if(a<b)a = b;
     n->tag_ = a+1;
   }
-  void replaceBy(node* n, node* n2) {
+  void replace_by(node* n, node* n2) {
     if(n==root_) root_ = n2;
     else if(n->p_->l_ == n) n->p_->l_ = n2;
     else n->p_->r_ = n2;
     n2->p_ = n->p_;
   }
   void erase(node* n) {
-    node* toFix = n->p_;
+    node* to_fix = n->p_;
     if(n->l_ == sink()) {
-      replaceBy(n,n->r_);
+      replace_by(n,n->r_);
     } else if(n->r_ == sink()) {
-      replaceBy(n,n->l_);
+      replace_by(n,n->l_);
     } else {
       node* n2 = n->r_;
       while(n2->l_ != sink()) n2 = n2->l_;
@@ -463,22 +463,22 @@ class bidir_avl {
         n2->l_ = n->l_;
         n2->l_->p_ = n2;
         n2->tag_ = n->tag_;
-        replaceBy(n,n2);
-        toFix = n2;
+        replace_by(n,n2);
+        to_fix = n2;
       } else {
-        replaceBy(n2,n2->r_);
-        toFix = n2->p_;
+        replace_by(n2,n2->r_);
+        to_fix = n2->p_;
         n2->l_ = n->l_;
         n2->r_ = n->r_;
         n2->tag_ = n->tag_;
         n->l_->p_ = n->r_->p_ = n2;
-        replaceBy(n,n2);
+        replace_by(n,n2);
       }
     }
-    eraseFix(toFix);
+    erase_fix(to_fix);
     delete n;
   }
-  void eraseFix(node* n) {
+  void erase_fix(node* n) {
     while(n != NULL) {
       int h = height(n);
       int a = height(n->l_);

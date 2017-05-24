@@ -14,29 +14,45 @@ class bst {
   public:
   bst() : root_() {}
   bool insert(const type& t) {
+    //return insert(root_,t);
     if(root_ == NULL) {
       root_ = new node(t);
       return true;
     }
     node* n = root_, *p;
-    bool onLeft;
+    bool on_left;
     // only use '<' operator... as STL
     do {
+      //this branch achieve a look-ahead : 
+      //to tell if n is possibly null or not in the next iteration
+      //looks like meaningless, but it is good for cpu pipelining and branch prediction
+      if(uintptr_t(n->l_) & uintptr_t(n->r_)) {
+        if(n->data_ < t) {
+          on_left = false;
+        } else if( t < n->data_ ) {
+          on_left = true;
+        } else return false;
+        p = n;
+        n = n->children_[on_left];
+        continue;
+      }
       if(n->data_ < t) {
-        p = n;
-        n = n->r_;
-        onLeft = false;
+        on_left = false;
       } else if( t < n->data_ ) {
-        p = n;
-        n = n->l_;
-        onLeft = true;
+        on_left = true;
       } else return false;
+      p = n;
+      //(story continued) 
+      //the value of n is conducted too late so the branch could induce stalled cycles
+      n = n->children_[on_left];
     } while(n != NULL);
-    if(onLeft) p->l_ = new node(t);
+    p->children_[on_left] = new node(t);
+    /*
+    if(on_left) p->l_ = new node(t);
     else p->r_ = new node(t);
+    */
     return true;
     //easy implementation... about 2.5% slower?
-    //return insert(root_,t);
   }
   bool erase(const type& t) {
     return erase(root_,t);
@@ -59,7 +75,7 @@ class bst {
   bool erase(node*& n, const type& t) {
     if( n == NULL ) return false;
     if( n->data_ == t) {
-      node* toDelete = n;
+      node* to_delete = n;
       if(n->l_ == NULL) n = n->r_;
       else if(n->r_ == NULL) n = n->l_;
       else {
@@ -73,7 +89,7 @@ class bst {
           n = curr;
         }
       }
-      delete toDelete;
+      delete to_delete;
       return true;
     }
     return erase( n->data_ < t ? n->r_ : n->l_ , t);

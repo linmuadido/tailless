@@ -8,7 +8,10 @@ namespace leo {
       simple_node(const type& t) : data_(t), l_(), r_() {}
       simple_node(const type& t, simple_node* l, simple_node* r) : data_(t), l_(l), r_(r) {}
       type data_;
-      simple_node *l_, *r_;
+      union {
+        simple_node* children_[2];
+        struct { simple_node *l_, *r_; };
+      };
     };
   template<typename type>
     struct bidir_node {
@@ -25,7 +28,10 @@ namespace leo {
       tagged_node(const type& t, tagged_node* l, tagged_node* r) : data_(t), l_(l), r_(r) {}
       tagged_node(const type& t, tagged_node* l, tagged_node* r, tag_type tag) : data_(t), l_(l), r_(r), tag_(tag) {}
       type data_;
-      tagged_node *l_, *r_;
+      union {
+        tagged_node* children_[2];
+        struct { tagged_node *l_, *r_; };
+      };
       tag_type tag_;
     };
   template<typename type, typename tag_type>
