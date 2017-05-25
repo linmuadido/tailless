@@ -42,15 +42,14 @@ class splay_tree {
       n = new node(t);
       return true;
     }
-    if( n->data_ == t) return false;
     if(n->data_ < t) {
       if( !insert( n->r_ , t ) )return false;
       rotate_to_left(n);
     }
-    else {
+    else if(t < n->data_) {
       if( !insert( n->l_ , t ) )return false;
       rotate_to_right(n);
-    }
+    } else return false;
     return true;
   }
   static bool bring_to_top(node*& n, const type& t) {
@@ -68,7 +67,7 @@ class splay_tree {
   }
   static bool erase(node*& n, const type& t) {
     if( !bring_to_top(n,t) ) return false;
-    node* toDelete = n;
+    node* to_delete = n;
     if(n->l_ == NULL) n = n->r_;
     else if(n->r_ == NULL) n = n->l_;
     else {
@@ -82,7 +81,7 @@ class splay_tree {
         n = curr;
       }
     }
-    delete toDelete;
+    delete to_delete;
     return true;
   }
   void collect(node* n, vector<type>& result) const {

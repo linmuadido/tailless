@@ -4,6 +4,7 @@
 #include <iostream>
 #include "./tree_node.h"
 #include "helper/compiler.h"
+#include "helper/debug.h"
 using namespace std;
 
 
@@ -26,6 +27,8 @@ class avl {
 #endif
   }
   bool insert(const type& t) {
+
+#if 0
     node**        traces[128];
     unsigned char dirs[128];
 
@@ -70,6 +73,65 @@ class avl {
       }
       return true;
     }
+#else
+    if(root_ == sink()) {
+      root_ = new node(t,sink(),sink(),1);
+      return true;
+    }
+    uintptr_t traces[128];
+    int32_t sz = 0;
+    node* n = root_;
+    do {
+      uintptr_t dir;
+      node* next;
+      if(n->data_ < t) dir = 1, next = n->r_;
+      else if( t < n->data_) dir = 0, next =n->l_;
+      else return false;
+      traces[sz++] = uintptr_t(n) | dir;
+      n = next;
+    }while(n != sink());
+    int32_t dir1, dir2, dir3;
+    dir1 = traces[--sz] & uintptr_t(1);
+    n = (node*)(traces[sz] & ~uintptr_t(1));
+    n->children_[dir1] = new node(t,sink(),sink(),1);
+    if( height(n) == 2) return true;
+    n->tag_ = 2;
+    tag_type hc = 2;
+    
+    while(--sz >=0) {
+      dir2 = traces[sz] & uintptr_t(1);
+      auto p = (node*)(traces[sz] & ~uintptr_t(1));
+      auto hp = height(p);
+      if(hp > hc)return true;
+      //if(height(dir2 ? p->l_ : p->r_) +1 == hc) {
+      if(height( p->children_[ !dir2 ] ) +1 == hc) {
+        hc = ++p->tag_;
+        dir1 = dir2;
+        continue;
+      }
+      //let's fix it
+      if(dir2) {
+        if(!dir1) rotate_to_right(p->r_);
+        if(!sz) {
+          rotate_to_left(root_);
+        } else {
+          dir3 = traces[sz-1] & uintptr_t(1);
+          auto gp = (node*)(traces[sz-1] & ~uintptr_t(1));
+          rotate_to_left(dir3 ? gp->r_ : gp->l_);
+        }
+      } else {
+        if(dir1) rotate_to_left(p->l_);
+        if(!sz) {
+          rotate_to_right(root_);
+        } else {
+          dir3 = traces[sz-1] & uintptr_t(1);
+          auto gp = (node*)(traces[sz-1] & ~uintptr_t(1));
+          rotate_to_right(dir3 ? gp->r_ : gp->l_);
+        }
+      }
+      return true;
+    }
+#endif
 
     return true;
     //easy implementation...20% slower
@@ -118,7 +180,6 @@ class avl {
 #ifdef AVL_PROFILE_ROATATION
     ++lcnt();
 #endif
-    //cout<<n<<' '<<n->r_<<endl;
     node* tmp = n->r_;
     n->r_ = tmp->l_;
     tmp->l_ = n;

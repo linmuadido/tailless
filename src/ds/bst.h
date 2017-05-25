@@ -31,10 +31,8 @@ class bst {
       if(uintptr_t(n->l_) & uintptr_t(n->r_)) {
         if(n->data_ < t) {
           on_left = false;
-          tracker.push_back(0);
         } else if( t < n->data_ ) {
           on_left = true;
-          tracker.push_back(1);
         } else return false;
         p = n;
         n = n->children_[on_left];
@@ -42,10 +40,8 @@ class bst {
       }
       if(n->data_ < t) {
         on_left = false;
-          tracker.push_back(0);
       } else if( t < n->data_ ) {
         on_left = true;
-          tracker.push_back(1);
       } else return false;
       p = n;
       //(story continued) 

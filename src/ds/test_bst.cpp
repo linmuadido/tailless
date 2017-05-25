@@ -53,6 +53,7 @@ int main(int argc, char** argv) {
   for(auto x : v) {
     //once(t,x);
     t.insert(x);
+    //if(!t.verify())exit(1);
   }
   stop_profile_nonrecur();
 #if defined( TEST_AVL ) || defined (TEST_BIDIR_AVL)
