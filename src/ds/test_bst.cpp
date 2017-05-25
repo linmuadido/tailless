@@ -22,6 +22,8 @@ using tut = set<int>;
 using tut = bst<int>;
 #elif defined (TEST_AVL)
 using tut = avl<int>;
+#elif defined (TEST_BIDIR_AVL)
+using tut = bidir_avl<int>;
 #elif defined (TEST_SPLAY)
 using tut = splay_tree<int>;
 #elif defined (TEST_BASE)
@@ -31,6 +33,11 @@ using tut = splay_tree<int>;
 using tut = set<int>;
 #endif
 
+#ifndef TEST_BASE
+void __attribute__((noinline)) once(tut& t, int x) {
+  t.insert(x);
+}
+#endif
 
 
 int main(int argc, char** argv) {
@@ -44,11 +51,11 @@ int main(int argc, char** argv) {
 
   start_profile_nonrecur("insertion");
   for(auto x : v) {
-    
+    //once(t,x);
     t.insert(x);
   }
   stop_profile_nonrecur();
-#ifdef TEST_AVL
+#if defined( TEST_AVL ) || defined (TEST_BIDIR_AVL)
     //if(!t.verify())exit(1);
 #endif
 #endif

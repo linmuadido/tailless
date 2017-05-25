@@ -26,11 +26,15 @@ class bst {
       //this branch achieve a look-ahead : 
       //to tell if n is possibly null or not in the next iteration
       //looks like meaningless, but it is good for cpu pipelining and branch prediction
+      //when the function is not inlined the effect is negative
+      //however the impact is very limited
       if(uintptr_t(n->l_) & uintptr_t(n->r_)) {
         if(n->data_ < t) {
           on_left = false;
+          tracker.push_back(0);
         } else if( t < n->data_ ) {
           on_left = true;
+          tracker.push_back(1);
         } else return false;
         p = n;
         n = n->children_[on_left];
@@ -38,8 +42,10 @@ class bst {
       }
       if(n->data_ < t) {
         on_left = false;
+          tracker.push_back(0);
       } else if( t < n->data_ ) {
         on_left = true;
+          tracker.push_back(1);
       } else return false;
       p = n;
       //(story continued) 
@@ -69,6 +75,9 @@ class bst {
       n = new node(t);
       return true;
     }
+    if(n->data_ < t) return insert(n->r_,t);
+    if(t < n->data_) return insert(n->l_,t);
+    return false;
     if( n->data_ == t) return false;
     return insert( n->data_ < t ? n->r_ : n->l_ , t);
   }

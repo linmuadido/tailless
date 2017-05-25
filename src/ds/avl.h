@@ -3,6 +3,7 @@
 #include <vector>
 #include <iostream>
 #include "./tree_node.h"
+#include "helper/compiler.h"
 using namespace std;
 
 
@@ -176,7 +177,7 @@ class avl {
         n = n->l_;
         update_height(n);
       } else {
-        replace_byLeftMost(n->r_->l_,n);
+        replace_by_leftmost(n->r_->l_,n);
         check_n_fix(n->r_);
       }
       check_n_fix(n);
@@ -216,7 +217,7 @@ class avl {
       rotate_to_left(n);
     }
   }
-  static void replace_byLeftMost(node*& n, node*& top) {
+  static void replace_by_leftmost(node*& n, node*& top) {
     //cout<<n->data_<<endl;
     if(n->l_ == sink()) {
       //cout<<"reaching end: right is ";
@@ -233,7 +234,7 @@ class avl {
     //cout<<"keeping going: right is ";
     //if(n->r_ == NULL) cout<<"(NULL)"<<endl;
     //else cout<<n->r_->data_<<endl;
-    replace_byLeftMost(n->l_,top);
+    replace_by_leftmost(n->l_,top);
     check_n_fix(n);
   }
   static void collect(node* n, vector<type>& result) {
@@ -374,6 +375,20 @@ class bidir_avl {
     update_height(n);
     tmp->tag_ = n->tag_+1;
   }
+  template<int IDX>
+  void rotate_to(node* n) {
+    if(IDX) ++rcnt();
+    else ++lcnt();
+
+    node* tmp = n->children_[IDX];
+    n->children_[IDX] = tmp->children_[!IDX];
+    tmp->children_[IDX] = n;
+    replace_by(n,tmp);
+    n->p_ = tmp;
+    n->children_[!IDX]->p_ = n;
+    update_height(n);
+    tmp->tag_ = n->tag_+1;
+  }
   void promote_rl(node* n) {
 #ifdef AVL_PROFILE_ROATATION
     ++lcnt();
@@ -413,13 +428,33 @@ class bidir_avl {
     ++tmp->tag_;
   }
   void insert_fix(node* n) {
+    if(height(n->p_) == 2) return;
+    n = n->p_;
+    n->tag_ = 2;
     while(n->p_ != NULL) {
       int h = height(n);
       node* parent = n->p_;
       int ph = height(parent);
 
-      if(h < ph)return;
+      if(h < ph) return;
+// thie block seems to be more neat and fast, but actually introduce much more stalled cpu syslts
+#if 0 
+      if(h == ph) {
+        ++parent->tag_;
+      } else {
+        if(parent->r_ == n) {
+          if(height(n->l_) > height(n->r_)) promote_rl(parent);
+          else rotate_to_left(parent);
+        } else {
+          if(height(n->r_) > height(n->l_)) promote_lr(parent);
+          else rotate_to_right(parent);
+        }
+        return;
+      }
+#else 
       if(parent->r_ == n) {
+        // surprsingly this brings more stalled cycles
+        //if(h == ph) ++parent->tag_; 
         if(height(parent->l_) == h-1) ++parent->tag_;
         else {
           if(height(n->l_) > height(n->r_)) promote_rl(parent);
@@ -427,6 +462,8 @@ class bidir_avl {
           return;
         }
       } else {
+        // surprsingly this brings more stalled cycles
+        //if(h == ph) ++parent->tag_;
         if(height(parent->r_) == h-1) ++parent->tag_;
         else {
           if(height(n->r_) > height(n->l_)) promote_lr(parent);
@@ -434,6 +471,7 @@ class bidir_avl {
           return;
         }
       }
+#endif
       n = parent;
     }
   }
@@ -445,7 +483,9 @@ class bidir_avl {
     n->tag_ = a+1;
   }
   void replace_by(node* n, node* n2) {
-    if(n==root_) root_ = n2;
+    if(n==root_) {
+      root_ = n2;
+    }
     else if(n->p_->l_ == n) n->p_->l_ = n2;
     else n->p_->r_ = n2;
     n2->p_ = n->p_;

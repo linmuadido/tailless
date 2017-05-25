@@ -10,6 +10,7 @@ namespace leo {
       type data_;
       union {
         simple_node* children_[2];
+        uintptr_t    ptr_vals_[2];
         struct { simple_node *l_, *r_; };
       };
     };
