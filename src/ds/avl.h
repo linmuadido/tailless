@@ -28,12 +28,11 @@ class avl {
   }
   bool insert(const type& t) {
 
-#if 0
     node**        traces[128];
     unsigned char dirs[128];
-
     int sz = 0;
     node** n = &root_;
+
     while(*n != sink()) {
       if((*n)->data_ < t) {
         traces[sz] = n;
@@ -65,74 +64,14 @@ class avl {
       }
       node*& nref = *(traces[sz]); // useless optimization : put refernce as late as possible
       if(dirs[sz]) {
-          if(!dirs[sz+1]) rotate_to_right(nref->r_);
-          rotate_to_left(nref);
+          if(!dirs[sz+1]) promote_rl(nref);
+          else rotate_to_left_zagzag(nref);
       } else {
-          if(dirs[sz+1]) rotate_to_left(nref->l_);
-          rotate_to_right(nref);
+          if(dirs[sz+1]) promote_lr(nref);
+          else rotate_to_right_zigzig(nref);
       }
       return true;
     }
-#else
-    if(root_ == sink()) {
-      root_ = new node(t,sink(),sink(),1);
-      return true;
-    }
-    uintptr_t traces[128];
-    int32_t sz = 0;
-    node* n = root_;
-    do {
-      uintptr_t dir;
-      node* next;
-      if(n->data_ < t) dir = 1, next = n->r_;
-      else if( t < n->data_) dir = 0, next =n->l_;
-      else return false;
-      traces[sz++] = uintptr_t(n) | dir;
-      n = next;
-    }while(n != sink());
-    int32_t dir1, dir2, dir3;
-    dir1 = traces[--sz] & uintptr_t(1);
-    n = (node*)(traces[sz] & ~uintptr_t(1));
-    n->children_[dir1] = new node(t,sink(),sink(),1);
-    if( height(n) == 2) return true;
-    n->tag_ = 2;
-    tag_type hc = 2;
-    
-    while(--sz >=0) {
-      dir2 = traces[sz] & uintptr_t(1);
-      auto p = (node*)(traces[sz] & ~uintptr_t(1));
-      auto hp = height(p);
-      if(hp > hc)return true;
-      //if(height(dir2 ? p->l_ : p->r_) +1 == hc) {
-      if(height( p->children_[ !dir2 ] ) +1 == hc) {
-        hc = ++p->tag_;
-        dir1 = dir2;
-        continue;
-      }
-      //let's fix it
-      if(dir2) {
-        if(!dir1) rotate_to_right(p->r_);
-        if(!sz) {
-          rotate_to_left(root_);
-        } else {
-          dir3 = traces[sz-1] & uintptr_t(1);
-          auto gp = (node*)(traces[sz-1] & ~uintptr_t(1));
-          rotate_to_left(dir3 ? gp->r_ : gp->l_);
-        }
-      } else {
-        if(dir1) rotate_to_left(p->l_);
-        if(!sz) {
-          rotate_to_right(root_);
-        } else {
-          dir3 = traces[sz-1] & uintptr_t(1);
-          auto gp = (node*)(traces[sz-1] & ~uintptr_t(1));
-          rotate_to_right(dir3 ? gp->r_ : gp->l_);
-        }
-      }
-      return true;
-    }
-#endif
-
     return true;
     //easy implementation...20% slower
     return insert(root_,t);
@@ -156,14 +95,64 @@ class avl {
     return true;
   }
   private:
-  //empirically using sink outperforms using NULL by 6%
-  static node* sink() {static node n(type(),NULL,NULL,0); return &n;}
+  //the following typical way introduce static magic (i.e. synchrization)
+  //static node* sink() {static node n(type(),NULL,NULL,0); return &n;}
+  //the following version can reduce the total instruction counts by 20%
+  //however stalled cycles increase, still need to find out the reason 
+  static node* sink() {
+    const static char arr[sizeof(node)] = {};
+    return (node*)arr;
+  }
   const static int FAIL = -1;
   const static int NO_NEED_FIX = 0;
   const static int NEED_FIX = 0;
   node *root_;
   static tag_type height(node const * const n) {
     return  n->tag_;
+  }
+  static void rotate_to_right_zigzig(node*& n) {
+#ifdef AVL_PROFILE_ROATATION
+    ++rcnt();
+#endif
+    --n->tag_;
+    node* tmp = n->l_;
+    n->l_ = tmp->r_;
+    tmp->r_ = n;
+    n = tmp;
+  }
+  static void rotate_to_left_zagzag(node*& n) {
+#ifdef AVL_PROFILE_ROATATION
+    ++lcnt();
+#endif
+    --n->tag_;
+    node* tmp = n->r_;
+    n->r_ = tmp->l_;
+    tmp->l_ = n;
+    n = tmp;
+  }
+  static void promote_rl(node*& n) {
+    node* r = n->r_;
+    node* rl = r->l_;
+    --n->tag_;
+    --r->tag_;
+    ++rl->tag_;
+    n->r_ = rl->l_;
+    r->l_ = rl->r_;
+    rl->l_ = n;
+    rl->r_ = r;
+    n = rl;
+  }
+  static void promote_lr(node*& n) {
+    node* l = n->l_;
+    node* lr = l->r_;
+    --n->tag_;
+    --l->tag_;
+    ++lr->tag_;
+    n->l_ = lr->r_;
+    l->r_ = lr->l_;
+    lr->l_ = n;
+    lr->r_ = l;
+    n = lr;
   }
   static void rotate_to_right(node*& n) {
 #ifdef AVL_PROFILE_ROATATION

@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
   }
   stop_profile_nonrecur();
 #if defined( TEST_AVL ) || defined (TEST_BIDIR_AVL)
-    //if(!t.verify())exit(1);
+  //if(!t.verify())exit(1);
 #endif
 #endif
   return 0;
