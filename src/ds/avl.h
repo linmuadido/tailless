@@ -52,7 +52,6 @@ class avl {
       if(height(n) == 2) return true;
       n->tag_ += 1;
     }
-
     while(--sz >= 0) {
       node* n = *(traces[sz]);
       int h = height(n->children_[ dirs[sz] ]);
@@ -389,7 +388,17 @@ class bidir_avl {
   private:
 
   //empirically using sink outperforms using NULL by 6%
-  static node* sink() {static node n(type(),NULL,NULL,NULL,0); return &n;}
+  //static node* sink() {static node n(type(),NULL,NULL,NULL,0); return &n;}
+  static node* sink() {
+    static char arr[sizeof(node)] = {};
+    return  (node*) arr;
+  }
+  /* tried this version, almost as good as static one
+  char arr_[sizeof(node)] = {};
+  node* sink() {
+    return  (node*) arr_;
+  }
+  */
   const static int FAIL = -1;
   const static int NO_NEED_FIX = 0;
   const static int NEED_FIX = 0;
@@ -478,6 +487,7 @@ class bidir_avl {
     ++tmp->tag_;
   }
   void insert_fix(node* n) {
+    __builtin_prefetch(sink(), 1,0);
     if(height(n->p_) == 2) return;
     n = n->p_;
     n->tag_ = 2;
@@ -504,8 +514,8 @@ class bidir_avl {
 #else 
       if(parent->r_ == n) {
         // surprsingly this brings more stalled cycles
-        //if(h == ph) ++parent->tag_; 
-        if(height(parent->l_) == h-1) ++parent->tag_;
+        if(h == ph) ++parent->tag_; 
+        //if(height(parent->l_) == h-1) ++parent->tag_;
         else {
           if(height(n->l_) > height(n->r_)) promote_rl(parent);
           else rotate_to_left(parent);
@@ -513,8 +523,8 @@ class bidir_avl {
         }
       } else {
         // surprsingly this brings more stalled cycles
-        //if(h == ph) ++parent->tag_;
-        if(height(parent->r_) == h-1) ++parent->tag_;
+        if(h == ph) ++parent->tag_;
+        //if(height(parent->r_) == h-1) ++parent->tag_;
         else {
           if(height(n->r_) > height(n->l_)) promote_lr(parent);
           else rotate_to_right(parent);
