@@ -387,8 +387,9 @@ class bidir_avl {
   }
   private:
 
-  //empirically using sink outperforms using NULL by 6%
+  
   //static node* sink() {static node n(type(),NULL,NULL,NULL,0); return &n;}
+  //the following hack avoid static magic, however more stalled cycles in insertion fix
   static node* sink() {
     static char arr[sizeof(node)] = {};
     return  (node*) arr;
