@@ -24,12 +24,17 @@ class rb_tree {
 #endif
   }
   bool insert(const type& t) {
+    if(root_ == sink()) {
+      root_ = new node(t,sink(),sink(),BLACK);
+      return true;
+    }
+
     node** traces[128];
     char      dirs[128];
 
     int sz = 0;
     node** n = &root_;
-    while(*n != sink()) {
+    do {
       if((*n)->data_ < t) {
         traces[sz] = n;
         n = &((*n)->r_);
@@ -41,20 +46,26 @@ class rb_tree {
       } else {
         return false;
       }
-    }
+    } while(*n != sink());
     *n = new node(t,sink(),sink(),RED);
 
-    int nReds = 1;
+    if(color(*traces[--sz]) == BLACK) return true;
+    int num_reds = 2;
+    //int num_reds = 1;
+    //bool to_fix = true;
     while(--sz >= 0) {
       node*& n = *(traces[sz]);
       if(color(n) == RED) {
-        ++nReds;
+        //to_fix = true;
+        num_reds = 2;
         continue;
       }
-      if(nReds <2) return true;
+      //if(to_fix == false) return true;
+      if(num_reds < 2) return true;
       if(color(n->l_) == color(n->r_)) {
         promote_red(n);
-        nReds = 1;
+        num_reds = 1;
+        //to_fix = false;
       } else if(dirs[sz] == 1) {
         if(color(n->r_->l_) == RED) promote_rl(n);
         else rotate_to_left(n);
