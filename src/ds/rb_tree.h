@@ -52,6 +52,7 @@ class rb_tree {
     if(color(*traces[--sz]) == BLACK) return true;
     int to_fix = true;
     while(--sz >= 0) {
+      if(sz) __builtin_prefetch(traces[sz-1],1,3);
       node*& n = *(traces[sz]);
       if(color(n) == RED) {
         to_fix = true;
@@ -181,8 +182,9 @@ class rb_tree {
   }
   static void promote_red(node* n) {
     n->tag_ = RED;
-    n->l_->tag_ = BLACK;
-    n->r_->tag_ = BLACK;
+    n->l_->tag_ = n->r_->tag_ = BLACK;
+    //n->l_->tag_ = BLACK;
+    //n->r_->tag_ = BLACK;
   }
   static int fixLeftDoubleBlack(node*& n) {
     if( color(n->r_) == RED) {
