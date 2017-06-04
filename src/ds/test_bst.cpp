@@ -1,5 +1,6 @@
 #include "bst.h"
 #include "avl.h"
+#include "rb_tree.h"
 #include "splay_tree.h"
 #include <set>
 #include "helper/debug.h"
@@ -24,6 +25,10 @@ using tut = bst<int>;
 using tut = avl<int>;
 #elif defined (TEST_BIDIR_AVL)
 using tut = bidir_avl<int>;
+#elif defined (TEST_RB)
+using tut = rb_tree<int>;
+#elif defined (TEST_BIDIR_RB)
+using tut = bidir_rb_tree<int>;
 #elif defined (TEST_SPLAY)
 using tut = splay_tree<int>;
 #elif defined (TEST_BASE)
