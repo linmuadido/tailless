@@ -30,7 +30,7 @@ class rb_tree {
     }
 
     node** traces[128];
-    char      dirs[128];
+    char   dirs[128];
 
     int sz = 0;
     node** n = &root_;
@@ -52,7 +52,6 @@ class rb_tree {
     if(color(*traces[--sz]) == BLACK) return true;
     int to_fix = true;
     while(--sz >= 0) {
-      if(sz) __builtin_prefetch(traces[sz-1],1,3);
       node*& n = *(traces[sz]);
       if(color(n) == RED) {
         to_fix = true;
