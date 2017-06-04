@@ -50,33 +50,29 @@ class rb_tree {
     *n = new node(t,sink(),sink(),RED);
 
     if(color(*traces[--sz]) == BLACK) return true;
-    int num_reds = 2;
-    //int num_reds = 1;
-    //bool to_fix = true;
+    int to_fix = true;
     while(--sz >= 0) {
+      if(sz) __builtin_prefetch(traces[sz-1],1,3);
       node*& n = *(traces[sz]);
       if(color(n) == RED) {
-        //to_fix = true;
-        num_reds = 2;
+        to_fix = true;
         continue;
       }
-      //if(to_fix == false) return true;
-      if(num_reds < 2) return true;
+      if(to_fix == false) return true;
       if(color(n->l_) == color(n->r_)) {
         promote_red(n);
-        num_reds = 1;
-        //to_fix = false;
+        to_fix = false;
       } else if(dirs[sz] == 1) {
+        n->tag_ = RED;
         if(color(n->r_->l_) == RED) promote_rl(n);
         else rotate_to_left(n);
         n->tag_ = BLACK;
-        n->l_->tag_ = RED;
         return true;
       } else {
+        n->tag_ = RED;
         if(color(n->l_->r_) == RED) promote_lr(n);
         else rotate_to_right(n);
         n->tag_ = BLACK;
-        n->r_->tag_ = RED;
         return true;
       }
     }
@@ -186,7 +182,8 @@ class rb_tree {
   }
   static void promote_red(node* n) {
     n->tag_ = RED;
-    n->l_->tag_ = n->r_->tag_ = BLACK;
+    n->l_->tag_ = BLACK;
+    n->r_->tag_ = BLACK;
   }
   static int fixLeftDoubleBlack(node*& n) {
     if( color(n->r_) == RED) {
