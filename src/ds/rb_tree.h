@@ -49,6 +49,7 @@ class rb_tree {
     } while(*n != sink());
     *n = new node(t,sink(),sink(),RED);
 
+
     if(color(*traces[--sz]) == BLACK) return true;
     int to_fix = true;
     while(--sz >= 0) {
@@ -117,7 +118,7 @@ class rb_tree {
 
   //static node* sink() {static node n(type(),NULL,NULL,BLACK); return &n;}
   static node* sink() {
-    const static char arr[sizeof(node)] = {};
+    static const char arr[sizeof(node)] = {};
     return (node*) arr;
   }
 
@@ -443,12 +444,13 @@ class bidir_rb_tree {
       root_ = new node(t,sink(),sink(),NULL,BLACK);
       return true;
     }
-#if 0
+    node* n = root_, **to_new;
     while(true) {
       if(n->data_ < t) {
         if(n->r_ == sink()) {
-          n->r_ = new node(t,sink(),sink(),n,RED);
-          n = n->r_;
+          //n->r_ = new node(t,sink(),sink(),n,RED);
+          //n = n->r_;
+          to_new = &n->r_;
           break;
         }
         else {
@@ -456,8 +458,9 @@ class bidir_rb_tree {
         }
       } else if( t < n->data_ ) {
         if(n->l_ == sink()) {
-          n->l_ = new node(t,sink(),sink(),n,RED);
-          n = n->l_;
+          //n->l_ = new node(t,sink(),sink(),n,RED);
+          //n = n->l_;
+          to_new = &n->l_;
           break;
         }
         else {
@@ -465,27 +468,7 @@ class bidir_rb_tree {
         }
       } else return false;
     }
-#else
-    node* n = root_, *p;
-    bool on_left;
-    do {
-      if(n->data_ < t) {
-        p = n;
-        n = n->r_;
-        on_left = false;
-      } else if( t < n->data_ ) {
-        p = n;
-        n = n->l_;
-        on_left = true;
-      } else return false;
-    } while( n != sink() );
-#endif
-    if(on_left) {
-      p->l_ = n = new node(t,sink(),sink(),NULL,RED);
-    } else {
-      p->r_ = n = new node(t,sink(),sink(),NULL,RED);
-    }
-    n->p_ = p;
+    n = *to_new = new node(t,sink(),sink(),n,RED);
     insert_fix(n);
     return true;
   }
@@ -534,7 +517,11 @@ class bidir_rb_tree {
   private:
 
   //empirically using sink outperforms using NULL by 6%
-  static node* sink() {static node n(type(),NULL,NULL,NULL,BLACK); return &n;}
+  //static node* sink() {static node n(type(),NULL,NULL,NULL,BLACK); return &n;}
+  static node* sink() {
+    static char arr [ sizeof(node) ] = {};
+    return (node*) arr;
+  }
   const static tag_type BLACK = 0;
   const static tag_type RED = 1;
   node *root_;
@@ -549,8 +536,8 @@ class bidir_rb_tree {
     n->l_ = tmp->r_;
     tmp->r_ = n;
     replace_by(n,tmp);
-    n->p_ = tmp;
     n->l_->p_ = n;
+    n->p_ = tmp;
 
   }
   void rotate_to_left(node* n) {
@@ -561,8 +548,8 @@ class bidir_rb_tree {
     n->r_ = tmp->l_;
     tmp->l_ = n;
     replace_by(n,tmp);
-    n->p_ = tmp;
     n->r_->p_ = n;
+    n->p_ = tmp;
 
   }
   void promote_rl(node* n) {
@@ -597,7 +584,50 @@ class bidir_rb_tree {
     replace_by(n,tmp);
     n->p_ = tmp;
   }
+  void insert_fix_first(node* n) {
+    node* p = n->p_;
+    if(color(p) == BLACK) return;
+    insert_fix_hi(p);
+  }
+  void insert_fix_hi(node* n) {
+    node* p = n->p_;
+    if(!p) {
+      n->tag_ = BLACK;
+      return;
+    }
+    __builtin_prefetch(p->p_,1,0);
+    p->tag_ = RED;
+    if(color(p->l_) != color(p->r_)) {
+      if(n == p->l_) {
+        if(color(n->l_) == BLACK) {
+          promote_lr(p);
+        } else {
+          rotate_to_right(p);
+        }
+      } else {
+        if(color(n->r_) == BLACK) {
+          promote_rl(p);
+        } else {
+          rotate_to_left(p);
+        }
+      }
+      p->p_->tag_ = BLACK;
+      return;
+    }
+    p->l_->tag_ = p->r_->tag_ = BLACK;
+    return insert_fix_lo(p);
+  }
+  void insert_fix_lo(node* n) {
+    node* p = n->p_;
+    if(p == NULL) {
+      n->tag_ = BLACK;
+      return;
+    }
+    if(color(p) == BLACK) return;
+    insert_fix_hi(p);
+  }
   void insert_fix(node* n) {
+    return insert_fix_first(n);
 #if 1
     while(n->p_ != NULL) {
       node* parent = n->p_;

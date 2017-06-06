@@ -61,6 +61,16 @@ int main(int argc, char** argv) {
     //if(!t.verify())exit(1);
   }
   stop_profile_nonrecur();
+  for(auto i=0u;i<v.size();++i) {
+    std::swap(v[i],v[rand()%TEST_SIZE]);
+  }
+  start_profile_nonrecur("deletion");
+  for(auto x : v) {
+    //once(t,x);
+    t.erase(x);
+    //if(!t.verify())exit(1);
+  }
+  stop_profile_nonrecur();
 #if defined( TEST_AVL ) || defined (TEST_BIDIR_AVL) || defined( TEST_RB ) || defined (TEST_BIDIR_RB)
 //#pragma message ("compiling with one-time verification")
   //if(!t.verify())exit(1);

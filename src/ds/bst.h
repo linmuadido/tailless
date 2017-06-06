@@ -19,42 +19,20 @@ class bst {
       root_ = new node(t);
       return true;
     }
-    node* n = root_, *p;
-    bool on_left;
-    // only use '<' operator... as STL
+    node** to_insert = &root_;
+    node*  n = root_;
+    int idx;
     do {
-      //this branch achieve a look-ahead : 
-      //to tell if n is possibly null or not in the next iteration
-      //looks like meaningless, but it is good for cpu pipelining and branch prediction
-      //when the function is not inlined the effect is negative
-      //however the impact is very limited
-      if(uintptr_t(n->l_) & uintptr_t(n->r_)) {
-        if(n->data_ < t) {
-          on_left = false;
-        } else if( t < n->data_ ) {
-          on_left = true;
-        } else return false;
-        p = n;
-        n = n->children_[on_left];
-        continue;
-      }
       if(n->data_ < t) {
-        on_left = false;
-      } else if( t < n->data_ ) {
-        on_left = true;
+        idx = 1;
+      } else if(t < n->data_) {
+        idx = 0;
       } else return false;
-      p = n;
-      //(story continued) 
-      //the value of n is conducted too late so the branch could induce stalled cycles
-      n = n->children_[on_left];
-    } while(n != NULL);
-    p->children_[on_left] = new node(t);
-    /*
-    if(on_left) p->l_ = new node(t);
-    else p->r_ = new node(t);
-    */
+      to_insert = &(n->children_[idx]);
+      n = n->children_[idx];
+    }while(n);
+    *to_insert = new node(t);
     return true;
-    //easy implementation... about 2.5% slower?
   }
   bool erase(const type& t) {
     return erase(root_,t);
@@ -77,27 +55,53 @@ class bst {
     if( n->data_ == t) return false;
     return insert( n->data_ < t ? n->r_ : n->l_ , t);
   }
+//#define PER_STEP_VERIFY
+#ifndef PER_STEP_VERIFY
+  static
+#endif
+  bool erase_node(node*& n) {
+#ifdef PER_STEP_VERIFY
+    std::vector<type> v1 = collect();
+#endif
+    node* to_delete = n;
+    if((n->ptr_vals_[0] & n->ptr_vals_[1]) || n->ptr_vals_[0] * n->ptr_vals_[1]) {
+      node** to_replace= &n->l_;
+      node* n2 = n->l_;
+      while(n2->r_) to_replace = &n2->r_, n2 = n2->r_;
+      *to_replace = n2->l_;
+      n2->l_ = n->l_;
+      n2->r_ = n->r_;
+      n = n2;
+    } else {
+      n = (node*)(n->ptr_vals_[0] ^ n->ptr_vals_[1]);
+    }
+#ifdef PER_STEP_VERIFY
+    std::vector<type> v2 = collect();
+    if(v1.size() != v2.size()+1) {
+      cout<<"size error: "<<v1.size() << " vs " << v2.size() <<endl;
+      exit(1);
+    }
+    for(int i=0, j=0;i<v1.size();++i) {
+      if(v1[i] != v2[j]) {
+        if(to_delete->data_ != v1[i]) {
+          cout<<"data error"<<endl;
+          exit(1);
+        }
+      } else ++j;
+    }
+#endif
+    delete to_delete;
+    return true;
+  }
   bool erase(node*& n, const type& t) {
     if( n == NULL ) return false;
-    if( n->data_ == t) {
-      node* to_delete = n;
-      if(n->l_ == NULL) n = n->r_;
-      else if(n->r_ == NULL) n = n->l_;
-      else {
-        node *prev = NULL, *curr = n->r_;
-        while(curr->l_) prev = curr, curr = curr->l_;
-        if(prev == NULL) curr->l_ = n->l_, n = curr;
-        else {
-          prev->l_ = curr->r_;
-          curr->l_ = n->l_;
-          curr->r_ = n->r_;
-          n = curr;
-        }
-      }
-      delete to_delete;
-      return true;
-    }
-    return erase( n->data_ < t ? n->r_ : n->l_ , t);
+    node** next;
+    if( n->data_ < t) {
+      next = &n->r_;
+    } else if(t < n->data_) {
+      next = &n->l_;
+    } else return erase_node(n);
+    return erase(*next,t);
   }
   void collect(node* n, vector<type>& result) const {
     if(n == NULL)return;

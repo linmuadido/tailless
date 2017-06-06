@@ -435,17 +435,16 @@ class bidir_avl {
     update_height(n);
     tmp->tag_ = n->tag_+1;
   }
-  template<int IDX>
-  void rotate_to(node* n) {
-    if(IDX) ++rcnt();
+  void rotate_to(node* n, int idx) {
+    if(idx) ++rcnt();
     else ++lcnt();
 
-    node* tmp = n->children_[IDX];
-    n->children_[IDX] = tmp->children_[!IDX];
-    tmp->children_[IDX] = n;
+    node* tmp = n->children_[idx];
+    n->children_[idx] = tmp->children_[!idx];
+    tmp->children_[idx] = n;
     replace_by(n,tmp);
     n->p_ = tmp;
-    n->children_[!IDX]->p_ = n;
+    n->children_[!idx]->p_ = n;
     update_height(n);
     tmp->tag_ = n->tag_+1;
   }
