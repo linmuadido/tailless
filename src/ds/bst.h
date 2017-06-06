@@ -65,10 +65,19 @@ class bst {
 #endif
     node* to_delete = n;
     if((n->ptr_vals_[0] & n->ptr_vals_[1]) || n->ptr_vals_[0] * n->ptr_vals_[1]) {
-      node** to_replace= &n->l_;
-      node* n2 = n->l_;
+      node** to_replace, *n2;
+#if 0 // always replace with node from left subtree
+      to_replace= &n->l_;
+      n2 = n->l_;
       while(n2->r_) to_replace = &n2->r_, n2 = n2->r_;
       *to_replace = n2->l_;
+#else
+      int idx = (n->l_ < n->r_);
+      to_replace= &n->children_[!idx];
+      n2 = n->children_[!idx];
+      while(n2->children_[idx]) to_replace = &n2->children_[idx], n2 = n2->children_[idx];
+      *to_replace = n2->children_[!idx];
+#endif
       n2->l_ = n->l_;
       n2->r_ = n->r_;
       n = n2;
