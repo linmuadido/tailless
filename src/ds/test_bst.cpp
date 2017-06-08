@@ -61,6 +61,10 @@ int main(int argc, char** argv) {
     //if(!t.verify())exit(1);
   }
   stop_profile_nonrecur();
+#if defined( TEST_AVL ) || defined (TEST_BIDIR_AVL) || defined( TEST_RB ) || defined (TEST_BIDIR_RB)
+//#pragma message ("compiling with one-time verification")
+  //if(!t.verify())exit(1);
+#endif
   for(auto i=0u;i<v.size();++i) {
     std::swap(v[i],v[rand()%TEST_SIZE]);
   }
@@ -71,10 +75,6 @@ int main(int argc, char** argv) {
     //if(!t.verify())exit(1);
   }
   stop_profile_nonrecur();
-#if defined( TEST_AVL ) || defined (TEST_BIDIR_AVL) || defined( TEST_RB ) || defined (TEST_BIDIR_RB)
-//#pragma message ("compiling with one-time verification")
-  //if(!t.verify())exit(1);
-#endif
 #endif
   return 0;
 }

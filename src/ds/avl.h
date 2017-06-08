@@ -30,8 +30,8 @@ class avl {
 
     node**        traces[128];
     unsigned char dirs[128];
-    int sz = 0;
     node** n = &root_;
+    int sz = 0;
 
     while(*n != sink()) {
       if((*n)->data_ < t) {
@@ -52,10 +52,11 @@ class avl {
       if(height(n) == 2) return true;
       n->tag_ += 1;
     }
+    int h = 2;
     while(--sz >= 0) {
       node* n = *(traces[sz]);
-      int h = height(n->children_[ dirs[sz] ]);
-      int diff = h - height(n->children_[ !dirs[sz] ]);
+      int h_sibling = height(n->children_[ !dirs[sz] ] );
+      int diff = (h++) - h_sibling;
       if(diff == 0) return true; // most frequently hit branch
       if(diff == 1) {
         ++n->tag_;
@@ -76,7 +77,115 @@ class avl {
     return insert(root_,t);
   }
   bool erase(const type& t) {
-    return erase(root_,t);
+    //return erase(root_,t);
+
+    //if(root_ == sink())return false;
+
+    node**        traces[128];
+    unsigned char dirs[128];
+    node** n = &root_;
+    int sz = 0;
+
+
+    while(1) {
+      if(*n == sink()) return false;
+      if((*n)->data_ < t) {
+        traces[sz] = n;
+        n = &((*n)->r_);
+        dirs[sz++] = 1;
+      } else if(t < (*n)->data_) {
+        traces[sz] = n;
+        n = &((*n)->l_);
+        dirs[sz++] = 0;
+      } else {
+        break;
+      }
+    }
+    if(!sz && height(root_) == 1) {
+      delete root_;
+      root_ = sink();
+      return true;
+    }
+
+    node* to_delete = *n;
+    node* prev = sink();
+    switch( height(*n) ) {
+      case 1 : {
+        *n = sink();
+        n = traces[--sz];
+        if( (*n)->children_[ !dirs[sz] ] == sink() ) {
+          --(*n)->tag_;
+          prev = *n;
+        } else if(height((*n)->children_[ !dirs[sz] ]) == 2) {
+          ++sz;
+        } else {
+          goto REPAIR_DONE;
+        }
+      } break;
+      case 2 : {
+        int idx = (*n)->l_ == sink() ? 1 : 0;
+        node* n2 = (*n)->children_[!idx];
+        *n = (*n)->children_[idx];
+        (*n)->children_[!idx] = n2;
+        prev = *n;
+        if(n2 == sink()) break;
+        (*n)->tag_ = 2;
+        goto REPAIR_DONE;
+      }break;
+      default: {
+        node** to_be_altered = n;
+        traces[sz] = n;
+        dirs[sz++] = 0;
+        n = &((*n)->l_);
+        int subtree_pos = sz;
+        while((*n)->r_ != sink()) {
+          traces[sz] = n;
+          dirs[sz++] = 1;
+          n = &((*n)->r_);
+        }
+        node* to_replace = *n;
+        node* to_promote = to_replace->l_;
+        *n = to_promote;
+        prev = to_promote;
+        to_replace->l_ = (*to_be_altered)->l_;
+        to_replace->r_ = (*to_be_altered)->r_;
+        to_replace->tag_ = (*to_be_altered)->tag_;
+        *to_be_altered = to_replace;
+        traces[subtree_pos] = &to_replace->l_;
+      }
+    }
+    while(--sz >= 0) {
+      node** n = traces[sz];
+      int idx = dirs[sz];
+      //node* n_short = (*n)->children_[  idx  ];
+      node* n_short = prev;
+      node* n_tall =  (*n)->children_[ !idx  ];
+      if( height(n_tall) == height(n_short)+1 ) goto REPAIR_DONE;
+      if( height(n_tall) == height(n_short)   ) (*n)->tag_ -= 1;
+      else {
+        int diff = height(n_tall->children_[!idx]) - height(n_tall->children_[idx]);
+        if(diff>=0) {
+          if(!idx) {
+            rotate_to_left(*n);
+          } else {
+            rotate_to_right(*n);
+          }
+          if(!diff)break;
+        } else {
+          if(!idx) {
+            rotate_to_right((*n)->r_);
+            rotate_to_left(*n);
+          } else {
+            rotate_to_left((*n)->l_);
+            rotate_to_right(*n);
+          }
+        }
+      }
+      prev = *n;
+    }
+REPAIR_DONE:
+    delete to_delete;
+    return true;
   }
   vector<type> collect() const {
     vector<type> ret;
@@ -178,8 +287,7 @@ class avl {
   static void update_height(node* n) {
     int a = height(n->l_);
     int b = height(n->r_);
-    if(a<b)a = b;
-    n->tag_ = a+1;
+    n->tag_ = ((a+b+1)>>1) +1;
   }
   static bool insert(node*& n, const type& t) {
     if( n == sink() ) {
@@ -552,6 +660,7 @@ class bidir_avl {
   }
   void erase(node* n) {
     node* to_fix = n->p_;
+    __builtin_prefetch(sink(), 1,0);
     if(n->l_ == sink()) {
       replace_by(n,n->r_);
     } else if(n->r_ == sink()) {
