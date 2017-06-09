@@ -8,7 +8,6 @@
 using namespace std;
 
 
-
 #define AVL_PROFILE_ROATATION
 #define AVL_PROFILE_INSERTION_BRANCH
 
@@ -287,7 +286,7 @@ REPAIR_DONE:
   static void update_height(node* n) {
     int a = height(n->l_);
     int b = height(n->r_);
-    n->tag_ = ((a+b+1)>>1) +1;
+    n->tag_ = (a+b+3)>>1;
   }
   static bool insert(node*& n, const type& t) {
     if( n == sink() ) {
@@ -543,6 +542,20 @@ class bidir_avl {
     update_height(n);
     tmp->tag_ = n->tag_+1;
   }
+  void rotate_to_dir(node* n,int idx) {
+#ifdef AVL_PROFILE_ROATATION
+    idx ? ++rcnt() : ++lcnt();
+#endif
+    node* tmp = n->children_[!idx];
+    n->children_[!idx] = tmp->children_[idx];
+    tmp->children_[idx] = n;
+    replace_by(n,tmp);
+    n->p_ = tmp;
+    n->children_[!idx]->p_ = n;
+
+    update_height(n);
+    tmp->tag_ = n->tag_+1;
+  }
   void rotate_to(node* n, int idx) {
     if(idx) ++rcnt();
     else ++lcnt();
@@ -575,6 +588,25 @@ class bidir_avl {
     --tmp->r_->tag_;
     ++tmp->tag_;
   }
+  void promote_zz(node* n, int idx) {
+#ifdef AVL_PROFILE_ROATATION
+    ++lcnt();
+    ++rcnt();
+#endif
+    node* tmp = n->children_[idx]->children_[!idx];
+    n->children_[idx]->children_[!idx] = tmp->children_[idx];
+    tmp->children_[idx]->p_ = n->children_[idx];
+    tmp->children_[idx] = n->children_[idx];
+    tmp->children_[idx]->p_ = tmp;
+    n->children_[idx] = tmp->children_[!idx];
+    n->children_[idx]->p_ = n;
+    tmp->children_[!idx] = n;
+    replace_by(n,tmp);
+    n->p_ = tmp;
+    n->tag_ = tmp->tag_;
+    --tmp->children_[idx]->tag_;
+    ++tmp->tag_;
+  }
   void promote_lr(node* n) {
 #ifdef AVL_PROFILE_ROATATION
     ++lcnt();
@@ -605,41 +637,21 @@ class bidir_avl {
       int ph = height(parent);
 
       if(h < ph) return;
-// thie block seems to be more neat and fast, but actually introduce much more stalled cpu syslts
-#if 0 
-      if(h == ph) {
-        ++parent->tag_;
-      } else {
-        if(parent->r_ == n) {
-          if(height(n->l_) > height(n->r_)) promote_rl(parent);
-          else rotate_to_left(parent);
-        } else {
-          if(height(n->r_) > height(n->l_)) promote_lr(parent);
-          else rotate_to_right(parent);
-        }
-        return;
-      }
-#else 
       if(parent->r_ == n) {
-        // surprsingly this brings more stalled cycles
-        if(h == ph) ++parent->tag_; 
-        //if(height(parent->l_) == h-1) ++parent->tag_;
+        if(height(parent->l_) == h-1) ++parent->tag_;
         else {
           if(height(n->l_) > height(n->r_)) promote_rl(parent);
           else rotate_to_left(parent);
           return;
         }
       } else {
-        // surprsingly this brings more stalled cycles
-        if(h == ph) ++parent->tag_;
-        //if(height(parent->r_) == h-1) ++parent->tag_;
+        if(height(parent->r_) == h-1) ++parent->tag_;
         else {
           if(height(n->r_) > height(n->l_)) promote_lr(parent);
           else rotate_to_right(parent);
           return;
         }
       }
-#endif
       n = parent;
     }
   }
@@ -647,72 +659,131 @@ class bidir_avl {
   static void update_height(node* n) {
     int a = height(n->l_);
     int b = height(n->r_);
-    if(a<b)a = b;
-    n->tag_ = a+1;
+    n->tag_ = (a+b+3)>>1;
   }
   void replace_by(node* n, node* n2) {
-    if(n==root_) {
+    node* p = n->p_;
+    if(!p) {
       root_ = n2;
     }
-    else if(n->p_->l_ == n) n->p_->l_ = n2;
-    else n->p_->r_ = n2;
+    else p->children_[n == p->r_] = n2;
+    //else if(n->p_->l_ == n) n->p_->l_ = n2;
+    //else n->p_->r_ = n2;
     n2->p_ = n->p_;
   }
   void erase(node* n) {
-    node* to_fix = n->p_;
-    __builtin_prefetch(sink(), 1,0);
-    if(n->l_ == sink()) {
-      replace_by(n,n->r_);
-    } else if(n->r_ == sink()) {
-      replace_by(n,n->l_);
-    } else {
-      node* n2 = n->r_;
-      while(n2->l_ != sink()) n2 = n2->l_;
-      if(n2->p_ == n) {
-        n2->l_ = n->l_;
-        n2->l_->p_ = n2;
-        n2->tag_ = n->tag_;
-        replace_by(n,n2);
-        to_fix = n2;
-      } else {
-        replace_by(n2,n2->r_);
-        to_fix = n2->p_;
-        n2->l_ = n->l_;
-        n2->r_ = n->r_;
-        n2->tag_ = n->tag_;
-        n->l_->p_ = n->r_->p_ = n2;
-        replace_by(n,n2);
-      }
+    //cout<<height(n)<<endl;
+    node* to_delete = n;
+    bool to_verify = height(n) == 30000;
+    if(to_verify) {
+      if(!verify())exit(1);
+      else cout<<"@"<<endl;
     }
-    erase_fix(to_fix);
-    delete n;
-  }
-  void erase_fix(node* n) {
-    while(n != NULL) {
-      int h = height(n);
-      int a = height(n->l_);
-      int b = height(n->r_);
-      int MM = a > b ? a : b;
-      if(h!= MM+1) {
+    switch( height(n) ) {
+      case 1: {
+        node* p = n->p_;
+        if(!p) { // root, the only node in the tree
+          root_ = sink();
+          goto REPAIR_DONE;
+        }
+        p->children_[n == p->r_] = sink();
+        n = p;
+      } break;
+      case 2: {
+        int idx = n->l_ == sink();
+        node* to_promote = n->children_[idx];
+        node* orphan = n->children_[!idx];
+        //adopt the orphan
+        to_promote->children_[!idx] = orphan;
+        orphan->p_ = to_promote;
+        //TODO: partial replacement
+        node* p = n->p_;
+        if(!p) {
+          root_ = to_promote;
+          if(orphan != sink()) {
+            to_promote->tag_ = 2;
+          }
+          goto REPAIR_DONE;
+        }
+        p->children_[p->l_ != n] = to_promote;
+        to_promote->p_ = p;
+        if(orphan != sink()) {
+          to_promote->tag_ = 2;
+          goto REPAIR_DONE;
+        }
+        n = p;
+      } break;
+      default: {
+        int idx = height(n->l_) < height(n->r_);
+        node* n2 = n->children_[idx];
+        if(n2->children_[!idx] == sink()) { // partial replacement
+          node* p = n->p_;
+          p->children_[p->r_ == n] = n2;
+          n2->p_ = p;
+          n2->children_[!idx] = n->children_[!idx];
+          n2->children_[!idx]->p_ = n2;
+          n2->tag_ = n->tag_;
+          if(n2->children_[idx] == sink()) {
+          } else if( height(n2->children_[!idx]) == 2) {
+            goto REPAIR_DONE;
+          } else {
+          }
+          n = n2;
+          break;
+        }
+        do {
+          n2 = n2->children_[!idx];
+        }while(n2->children_[!idx] != sink());
+        node* orphan = n2->children_[idx];
+        node* p = n2->p_;
+        p->children_[!idx] = orphan;
+        orphan->p_ = p;
+        replace_by(n,n2);
+        n2->children_[idx] = n->children_[idx];
+        n2->children_[!idx] = n->children_[!idx];
+        n->children_[idx]->p_ = n->children_[!idx]->p_ = n2; 
+        n2->tag_ = n->tag_;
+        n = p;
+      } break;
+    }
+    do {
+      node* l = n->l_;
+      node* r = n->r_;
+      int h_l = height(l);
+      int h_r = height(r);
+      if( (h_l^h_r) & 1 ) goto REPAIR_DONE;
+      node* p = n->p_;
+      if(h_l == h_r) {
         --n->tag_;
-        n = n->p_;
-        continue;
-      }
-      if (a > b+1) {
-        //if(height(n->l_->r_) > height(n->l_->l_)) rotate_to_left(n->l_);
-        //rotate_to_right(n);
-        if(height(n->l_->r_) > height(n->l_->l_)) promote_lr(n);
-        else rotate_to_right(n);
-      } else if(b > a+1) {
-        if(height(n->r_->l_) > height(n->r_->r_)) promote_rl(n);
-        else rotate_to_left(n);
       } else {
-        return;
+        int idx = h_r > h_l;
+        node* n_tall = n->children_[idx];
+        int diff = height(n_tall->children_[idx]) - height(n_tall->children_[!idx]);
+        if(diff>=0) {
+          rotate_to_dir(n,!idx);
+          //if(idx) rotate_to_left(n);
+          //else rotate_to_right(n);
+          if(!diff) goto REPAIR_DONE;
+        }
+        else {
+          //promote_zz(n,idx);
+          if(idx) promote_rl(n);
+          else promote_lr(n);
+        }
       }
-      n = n->p_;
-      if(h ==height(n)) return;
-      n = n->p_;
+      n = p;
+    } while( n );
+REPAIR_DONE:
+    if(to_verify) {
+      if(!verify())exit(1);
+      else cout<<"*"<<endl;
     }
+    delete to_delete;
+  }
+  inline node* sibling( node* p, node* n) {
+    return (node*)(p->ptr_vals_[0] ^ p->ptgr_vals_[1] ^ uintptr_t(n));
+    return n== p->l_ ? p->r_ : p->l_;
+    return p->children_[p->l_ == n];
   }
   static void collect(node* n, vector<type>& result) {
     if(n == sink())return;

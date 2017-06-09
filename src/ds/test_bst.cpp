@@ -59,6 +59,7 @@ int main(int argc, char** argv) {
     //once(t,x);
     t.insert(x);
     //if(!t.verify())exit(1);
+    //else cout<<"*"<<flush;
   }
   stop_profile_nonrecur();
 #if defined( TEST_AVL ) || defined (TEST_BIDIR_AVL) || defined( TEST_RB ) || defined (TEST_BIDIR_RB)
@@ -73,6 +74,7 @@ int main(int argc, char** argv) {
     //once(t,x);
     t.erase(x);
     //if(!t.verify())exit(1);
+    //else cout<<"*"<<flush;
   }
   stop_profile_nonrecur();
 #endif

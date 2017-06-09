@@ -42,7 +42,11 @@ template<typename type, typename tag_type>
     bidir_tagged_node(const type& t, bidir_tagged_node* l, bidir_tagged_node* r, bidir_tagged_node* p) : data_(t), l_(l), r_(r), p_(),tag_() {}
     bidir_tagged_node(const type& t, bidir_tagged_node* l, bidir_tagged_node* r, bidir_tagged_node* p, tag_type tag) : data_(t), l_(l), r_(r), p_(p), tag_(tag) {}
     type data_;
-    bidir_tagged_node *l_, *r_, *p_;
+    union {
+      bidir_tagged_node* children_[2];
+      struct {bidir_tagged_node *l_, *r_; };
+    };
+    bidir_tagged_node *p_;
     tag_type tag_;
   };
 }
