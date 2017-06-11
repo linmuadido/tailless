@@ -172,11 +172,9 @@ class avl {
           if(!diff)break;
         } else {
           if(!idx) {
-            rotate_to_right((*n)->r_);
-            rotate_to_left(*n);
+            promote_rl(*n);
           } else {
-            rotate_to_left((*n)->l_);
-            rotate_to_right(*n);
+            promote_lr(*n);
           }
         }
       }
@@ -240,9 +238,7 @@ REPAIR_DONE:
   static void promote_rl(node*& n) {
     node* r = n->r_;
     node* rl = r->l_;
-    --n->tag_;
-    --r->tag_;
-    ++rl->tag_;
+    n->tag_ = r->tag_ = rl->tag_++;
     n->r_ = rl->l_;
     r->l_ = rl->r_;
     rl->l_ = n;
@@ -252,9 +248,7 @@ REPAIR_DONE:
   static void promote_lr(node*& n) {
     node* l = n->l_;
     node* lr = l->r_;
-    --n->tag_;
-    --l->tag_;
-    ++lr->tag_;
+    n->tag_ = l->tag_ = lr->tag_++;
     n->l_ = lr->r_;
     l->r_ = lr->l_;
     lr->l_ = n;
@@ -547,6 +541,8 @@ class bidir_avl {
     idx ? ++rcnt() : ++lcnt();
 #endif
     node* tmp = n->children_[!idx];
+    n->tag_ = height(tmp->children_[idx])+1;
+    tmp->tag_ = height(n)+1;
     n->children_[!idx] = tmp->children_[idx];
     tmp->children_[idx] = n;
     replace_by(n,tmp);
@@ -569,25 +565,6 @@ class bidir_avl {
     update_height(n);
     tmp->tag_ = n->tag_+1;
   }
-  void promote_rl(node* n) {
-#ifdef AVL_PROFILE_ROATATION
-    ++lcnt();
-    ++rcnt();
-#endif
-    node* tmp = n->r_->l_;
-    n->r_->l_ = tmp->r_;
-    tmp->r_->p_ = n->r_;
-    tmp->r_ = n->r_;
-    tmp->r_->p_ = tmp;
-    n->r_ = tmp->l_;
-    n->r_->p_ = n;
-    tmp->l_ = n;
-    replace_by(n,tmp);
-    n->p_ = tmp;
-    n->tag_ = tmp->tag_;
-    --tmp->r_->tag_;
-    ++tmp->tag_;
-  }
   void promote_zz(node* n, int idx) {
 #ifdef AVL_PROFILE_ROATATION
     ++lcnt();
@@ -605,6 +582,25 @@ class bidir_avl {
     n->p_ = tmp;
     n->tag_ = tmp->tag_;
     --tmp->children_[idx]->tag_;
+    ++tmp->tag_;
+  }
+  void promote_rl(node* n) {
+#ifdef AVL_PROFILE_ROATATION
+    ++lcnt();
+    ++rcnt();
+#endif
+    node* tmp = n->r_->l_;
+    n->r_->l_ = tmp->r_;
+    tmp->r_->p_ = n->r_;
+    tmp->r_ = n->r_;
+    tmp->r_->p_ = tmp;
+    n->r_ = tmp->l_;
+    n->r_->p_ = n;
+    tmp->l_ = n;
+    replace_by(n,tmp);
+    n->p_ = tmp;
+    n->tag_ = tmp->tag_;
+    --tmp->r_->tag_;
     ++tmp->tag_;
   }
   void promote_lr(node* n) {
