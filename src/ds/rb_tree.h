@@ -83,8 +83,125 @@ class rb_tree {
     return true;
   }
   bool erase(const type& t) {
-    if( erase(root_,t) == FAIL) return false;
-    if(color(root_) == RED) root_->tag_ = BLACK;
+    //if( erase(root_,t) == FAIL) return false;
+    //if(color(root_) == RED) root_->tag_ = BLACK;
+    node**        traces[128];
+    unsigned char dirs[128];
+    node** n = &root_;
+    int sz = 0;
+
+
+    while(1) {
+      if(*n == sink()) return false;
+      if((*n)->data_ < t) {
+        traces[sz] = n;
+        n = &((*n)->r_);
+        dirs[sz++] = 1;
+      } else if(t < (*n)->data_) {
+        traces[sz] = n;
+        n = &((*n)->l_);
+        dirs[sz++] = 0;
+      } else {
+        break;
+      }
+    }
+    node* to_delete = *n;
+    if((*n)->l_ == (*n)->r_) {
+      *n = sink();
+      if(color(to_delete) == RED) {
+        goto REPAIR_DONE;
+      }
+    } else if((*n)->l_ == sink()) {
+      *n = (*n)->r_;
+      (*n)->tag_ = BLACK;
+      goto REPAIR_DONE;
+    } else if((*n)->r_ == sink()) {
+      *n = (*n)->l_;
+      (*n)->tag_ = BLACK;
+      goto REPAIR_DONE;
+    } else if((*n)->l_->r_ == sink()) {
+      *n = (*n)->l_;
+      (*n)->r_ = to_delete->r_;
+      if(color(*n) == RED) {
+        (*n)->tag_ = BLACK;
+        goto REPAIR_DONE;
+      }
+      //left child is black
+      (*n)->tag_ = color(to_delete);
+      if((*n)->l_ != sink()) {
+        (*n)->l_->tag_ = BLACK;
+        goto REPAIR_DONE;
+      }
+      traces[sz] = n;
+      dirs[sz++] = 0;
+    } else {
+      node** to_be_altered = n;
+      traces[sz] = n;
+      dirs[sz++] = 0;
+      n = &((*n)->l_);
+      int subtree_pos = sz;
+      do {
+        traces[sz] = n;
+        dirs[sz++] = 1;
+        n = &((*n)->r_);
+      } while((*n)->r_ != sink());
+      node* orphan = (*n)->l_;
+      auto clr = color(*n);
+      (*n)->l_ = (*to_be_altered)->l_;
+      (*n)->r_ = (*to_be_altered)->r_;
+      (*n)->tag_ = (*to_be_altered)->tag_;
+      *to_be_altered = *n;
+      traces[subtree_pos] = &((*n)->l_);
+      *n = orphan;
+      if(orphan != sink()) {
+        orphan->tag_ = BLACK;
+        goto REPAIR_DONE;
+      }
+      if(clr != BLACK) {
+        goto REPAIR_DONE;
+      }
+    }
+    while(--sz >= 0) {
+      n = traces[sz];
+      int idx = dirs[sz];
+      node* sibling = (*n)->children_[!idx];
+      if(color(*n) == RED) {
+      } else if( color(sibling) == RED ) {
+        if(!idx) rotate_to_left(*n);
+        else rotate_to_right(*n);
+        (*n)->tag_ = BLACK;
+        n = &((*n)->children_[idx]);
+        (*n)->tag_ = RED;
+        sibling = (*n)->children_[!idx];
+      } else if(color(sibling->l_) + color(sibling->r_) == BLACK) {
+        //all blacks...pormote double-balck to current node
+        sibling->tag_ = RED;
+        continue;
+      }
+      if(color(sibling->l_) + color(sibling->r_) == BLACK) {
+        //happy ending, no rotation
+        (*n)->tag_ = BLACK;
+        sibling->tag_ = RED;
+        goto REPAIR_DONE;
+      }
+      auto clr = color(*n);
+      (*n)->tag_ = BLACK;
+      if(color(sibling->children_[!idx]) == BLACK) {
+        if(!idx) promote_rl(*n);
+        else promote_lr(*n);
+      } else {
+        sibling->children_[!idx]->tag_ = BLACK;
+        rotate_to_dir(*n,idx);
+        //if(!idx) rotate_to_left(*n);
+        //else rotate_to_right(*n);
+      }
+      (*n)->tag_ = clr;
+      break;
+    }
+
+
+REPAIR_DONE:
+    delete to_delete;
     return true;
   }
   vector<type> collect() const {
@@ -138,6 +255,15 @@ class rb_tree {
   node *root_;
   static tag_type color(node const * const n) {
     return n->tag_;
+  }
+  static void rotate_to_dir(node*& n, int idx) {
+#ifdef RB_PROFILE_ROATATION
+    idx ? ++rcnt() : ++lcnt();
+#endif
+    node* tmp = n->children_[!idx];
+    n->children_[!idx] = tmp->children_[idx];
+    tmp->children_[idx] = n;
+    n = tmp;
   }
   static void rotate_to_right(node*& n) {
 #ifdef RB_PROFILE_ROATATION
@@ -273,138 +399,6 @@ class rb_tree {
       return NO_NEED_FIX;
     }
     return FAIL;
-  }
-  static int eraseLeaf(node*& n) {
-      int ret = n->tag_ == BLACK ? FIX_DOUBLE_BLACK : NO_NEED_FIX;
-      delete n;
-      n = sink();
-      return ret;
-  }
-  static int erase(node*& n, const type& t) {
-    if(n==sink()) return FAIL;
-    int ret = NO_NEED_FIX;
-    if(n->data_ == t) {
-      if(n->l_ == sink() && n->r_ == sink()) {
-        return eraseLeaf(n);
-      }
-      node* to_delete = n;
-      if(n->l_ == sink() ) {
-        n = n->r_;
-        n->tag_ = BLACK;
-      } else if(n->r_ == sink()) {
-        n = n->l_;
-        n->tag_ = BLACK;
-      } else if(n->r_->l_ == sink()) {
-        tag_type clr = color(n);
-        n->r_->l_ = n->l_;
-        n = n->r_;
-        if(color(n) == RED) {
-          n->tag_ = BLACK;
-        } else {
-          n->tag_ = clr;
-          if(color(n->r_) == RED) {
-            n->r_->tag_ = BLACK;
-          } else {
-            ret = fixByCodeFromRight(n,FIX_DOUBLE_BLACK);
-          }
-        }
-      } else if(n->l_->r_ == sink()) {
-        tag_type clr = color(n);
-        n->l_->r_ = n->r_;
-        n = n->l_;
-        if(color(n) == RED) {
-          n->tag_ = BLACK;
-        } else {
-          n->tag_ = clr;
-          if(color(n->l_) == RED) {
-            n->l_->tag_ = BLACK;
-          } else {
-            ret = fixByCodeFromLeft(n,FIX_DOUBLE_BLACK);
-          }
-        }
-      } else {
-        ret = replace_by_leftmost(n->r_->l_,n);
-        ret = fixByCodeFromLeft(n->r_,ret);
-        ret = fixByCodeFromRight(n,ret);
-      }
-      delete to_delete;
-      return ret;
-    }
-    if(n->data_ < t) {
-      ret = erase(n->r_,t);
-      if(ret != FAIL && ret != NO_NEED_FIX) ret = fixByCodeFromRight(n,ret);
-    } else {
-      ret = erase(n->l_,t);
-      if(ret != FAIL && ret != NO_NEED_FIX) ret = fixByCodeFromLeft(n,ret);
-    }
-    return ret;
-  }
-  static int fixByCodeFromLeft(node*& n, int code) {
-    switch(code) {
-      case CHECK_RR:
-        return color(n->r_) == RED ? FIX_SLASH : NO_NEED_FIX;
-      case FIX_SLASH:
-      case FIX_BACKSLASH:
-        if(color(n->r_) == RED) {
-          promote_red(n);
-          return CHECK_RR;
-        }
-        if(code == FIX_BACKSLASH) {
-          rotate_to_left(n->l_);
-        }
-        rotate_to_right(n);
-        n->tag_ = BLACK;
-        n->r_->tag_ = RED;
-        return NO_NEED_FIX;
-
-      case FIX_DOUBLE_BLACK:
-        return fixLeftDoubleBlack(n);
-      default:
-        break;
-    }
-    return code;
-  }
-  static int fixByCodeFromRight(node*& n, int code) {
-    switch(code) {
-      case CHECK_RR:
-        return color(n->r_) == RED ? FIX_BACKSLASH : NO_NEED_FIX;
-      case FIX_SLASH:
-      case FIX_BACKSLASH:
-        if(color(n->r_) == RED) {
-          promote_red(n);
-          return CHECK_RR;
-        }
-        if(code == FIX_SLASH) {
-          rotate_to_right(n->r_);
-        }
-        rotate_to_left(n);
-        n->tag_ = BLACK;
-        n->l_->tag_ = RED;
-        return NO_NEED_FIX;
-
-      case FIX_DOUBLE_BLACK:
-        return fixRightDoubleBlack(n);
-      default:
-        break;
-    }
-    return code;
-  }
-  static int replace_by_leftmost(node*& n, node*& top) {
-    if(n->l_ == sink()) {
-      tag_type clr = color(top);
-      node* tmp = top;
-      top = n;
-      n = n->r_;
-      clr = top->tag_;
-      top->l_ = tmp->l_;
-      top->r_ = tmp->r_;
-      top->tag_ = tmp->tag_;
-      if(n == sink()) return clr == BLACK ? FIX_DOUBLE_BLACK : NO_NEED_FIX;
-      n->tag_ = BLACK;
-      return NO_NEED_FIX;
-    }
-    int ret = replace_by_leftmost(n->l_,top);
-    return fixByCodeFromLeft(n,ret);
   }
   void collect(node* n, vector<type>& result) const {
     if(n == sink())return;

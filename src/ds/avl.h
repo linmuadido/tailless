@@ -670,11 +670,6 @@ class bidir_avl {
   void erase(node* n) {
     //cout<<height(n)<<endl;
     node* to_delete = n;
-    bool to_verify = height(n) == 30000;
-    if(to_verify) {
-      if(!verify())exit(1);
-      else cout<<"@"<<endl;
-    }
     switch( height(n) ) {
       case 1: {
         node* p = n->p_;
@@ -770,10 +765,6 @@ class bidir_avl {
       n = p;
     } while( n );
 REPAIR_DONE:
-    if(to_verify) {
-      if(!verify())exit(1);
-      else cout<<"*"<<endl;
-    }
     delete to_delete;
   }
   inline node* sibling( node* p, node* n) {
