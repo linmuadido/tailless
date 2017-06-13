@@ -313,93 +313,6 @@ REPAIR_DONE:
     //n->l_->tag_ = BLACK;
     //n->r_->tag_ = BLACK;
   }
-  static int fixLeftDoubleBlack(node*& n) {
-    if( color(n->r_) == RED) {
-      rotate_to_left(n);
-      n->tag_ = BLACK;
-      n->l_->tag_ = RED;
-      return fixLeftDoubleBlack(n->l_);
-    }
-    if( color(n->r_->r_) == BLACK) {
-      if(color(n->r_->l_) == RED) {
-        rotate_to_right(n->r_);
-      } else if( color(n) == RED ) {
-        n->tag_ = BLACK;
-        n->r_->tag_ = RED;
-        return NO_NEED_FIX;
-      } else {
-        n->r_->tag_ = RED;
-        return FIX_DOUBLE_BLACK;
-      }
-    }
-    tag_type clr = color(n);
-    rotate_to_left(n);
-    n->tag_ = clr;
-    n->l_->tag_ = BLACK;
-    n->r_->tag_ = BLACK;
-    return NO_NEED_FIX;
-  }
-  static int fixRightDoubleBlack(node*& n) {
-    if( color(n->l_) == RED) {
-      rotate_to_right(n);
-      n->tag_ = BLACK;
-      n->r_->tag_ = RED;
-      return fixRightDoubleBlack(n->r_);
-    }
-    if( color(n->l_->l_) == BLACK) {
-      if(color(n->l_->r_) == RED) {
-        rotate_to_left(n->l_);
-      } else if( color(n) == RED ) {
-        n->tag_ = BLACK;
-        n->l_->tag_ = RED;
-        return NO_NEED_FIX;
-      } else {
-        n->l_->tag_ = RED;
-        return FIX_DOUBLE_BLACK;
-      }
-    }
-    tag_type clr = color(n);
-    rotate_to_right(n);
-    n->tag_ = clr;
-    n->l_->tag_ = BLACK;
-    n->r_->tag_ = BLACK;
-    return NO_NEED_FIX;
-  }
-  int insert(node*& n, const type& t) {
-    if( n == sink() ) {
-      n = new node(t,sink(),sink(),RED);
-      return CHECK_RR;
-    }
-    if(n->data_ < t) {
-      int ret = insert(n->r_,t);
-      if(ret == FAIL || ret == NO_NEED_FIX) return ret;
-      if(ret == CHECK_RR) return color(n) == RED ? FIX_BACKSLASH : NO_NEED_FIX;
-      if(color(n->l_) == RED) {  
-        n->tag_ = RED;
-        n->l_->tag_ = n->r_->tag_ = BLACK;
-        return CHECK_RR;
-      }
-      if(ret == FIX_SLASH) promote_rl(n);
-      else rotate_to_left(n);
-      n->tag_ = BLACK;
-      n->l_->tag_ = RED;
-      return NO_NEED_FIX;
-    } else if(n->data_ > t) {
-      int ret = insert(n->l_,t);
-      if(ret == FAIL || ret == NO_NEED_FIX) return ret;
-      if(ret == CHECK_RR) return color(n) == RED ? FIX_SLASH : NO_NEED_FIX;
-      if(color(n->r_) == RED) {  
-        promote_red(n);
-        return CHECK_RR;
-      }
-      if(ret == FIX_BACKSLASH) promote_lr(n);
-      else rotate_to_right(n);
-      n->tag_ = BLACK;
-      n->r_->tag_ = RED;
-      return NO_NEED_FIX;
-    }
-    return FAIL;
-  }
   void collect(node* n, vector<type>& result) const {
     if(n == sink())return;
     collect(n->l_,result);
@@ -715,139 +628,101 @@ class bidir_rb_tree {
     n2->p_ = n->p_;
   }
   void erase(node* n) {
+    node* to_delete = n;
     if(n->l_ == n->r_) {
-      if(color(n) == BLACK) {
-        fixDoubleBlack(n);
-      }
       replace_by(n,sink());
-    } else if(n->l_ == sink()) {
+      if(color(to_delete) ==RED) {
+        goto REPAIR_DONE;
+      }
+      n = n->p_;
+    } else if(n->l_ == sink() ) {
       replace_by(n,n->r_);
       n->r_->tag_ = BLACK;
-    } else if(n->r_ == sink()) {
+      goto REPAIR_DONE;
+    } else if(n->r_ == sink() ) {
       replace_by(n,n->l_);
       n->l_->tag_ = BLACK;
+      goto REPAIR_DONE;
+    } else if(n->l_->r_ == sink()) {
+      n = n->l_;
+      auto clr = color(n);
+      n->r_ = to_delete->r_;
+      n->r_->p_ = n;
+      n->tag_ = color(to_delete);
+      replace_by(to_delete,n);
+      if(n->l_ != sink()) {
+        n->l_->tag_ = BLACK;
+        goto REPAIR_DONE;
+      }
+      if(clr !=BLACK) {
+        goto REPAIR_DONE;
+      }
     } else {
-      node* n2 = n->r_;
-      while(n2->l_ != sink()) n2 = n2->l_;
-      if(n2->p_ == n) {
-        if(color(n2) == RED) { // too many duplicants..need to refactor
-          n2->l_ = n->l_;
-          n2->l_->p_ = n2;
-          n2->tag_ = BLACK;
-          replace_by(n,n2);
-        } else if( n2->r_ != sink() ) {
-          n2->l_ = n->l_;
-          n2->l_->p_ = n2;
-          replace_by(n,n2);
-          n2->r_->tag_ = n2->tag_;
-          n2->tag_ = n->tag_;
-        } else {
-          fixDoubleBlack(n2);
-          n2->l_ = n->l_;
-          n2->l_->p_ = n2;
-          n2->tag_ = n->tag_;
-          replace_by(n,n2);
-        }
-      } else {
-        if( color(n2) == RED ) {
-          n2->p_->l_ = sink();
-          n2->l_ = n->l_;
-          n2->r_ = n->r_;
-          n2->l_->p_ = n2;
-          n2->r_->p_ = n2;
-          n2->tag_ = n->tag_;
-          replace_by(n,n2);
-        } else if(n2->r_ != sink() ) {
-          n2->p_->l_ = n2->r_;
-          n2->r_->p_ = n2->p_;
-          n2->r_->tag_ = BLACK;
-
-          n2->l_ = n->l_;
-          n2->r_ = n->r_;
-          n2->l_->p_ = n2;
-          n2->r_->p_ = n2;
-          n2->tag_ = n->tag_;
-
-          replace_by(n,n2);
-        } else {
-          fixDoubleBlack(n2);
-          n2->p_->l_ = sink();
-          n2->l_ = n->l_;
-          n2->r_ = n->r_;
-          n2->l_->p_ = n2;
-          n2->r_->p_ = n2;
-          n2->tag_ = n->tag_;
-          replace_by(n,n2);
-        }
+      n = n->l_->r_;
+      while(n->r_ != sink()) {
+        n = n->r_;
       }
-    }
-    delete n;
-  }
-  void fixDoubleBlack(node* n) {
-    node *parent, *sibling;
-    while(parent = n->p_, parent != NULL) {
-      if(parent->l_ == n) {
-        sibling = parent->r_;
-        if( color(sibling) == RED ) {
-          rotate_to_left(parent);
-          sibling->tag_ = BLACK;
-          parent->tag_ = RED;
-          sibling = parent->r_;
-        }
-        //so now im pretty sure sibling is black
-        if(color(sibling->l_) == BLACK && color(sibling->r_) == BLACK) {
-          sibling->tag_ = RED;
-          if( color(parent) == RED ) {
-            parent->tag_ = BLACK;
-            return;
-          }
-          n = parent;
-        } else {
-          if(color(sibling->r_) == BLACK) {
-            rotate_to_right(sibling);
-            sibling->tag_ = RED;
-            sibling->p_->tag_ = BLACK;
-            sibling = sibling->p_;
-          }
-          rotate_to_left(parent);
-          sibling->tag_ = parent->tag_;
-          parent->tag_ = BLACK;
-          sibling->r_->tag_ = BLACK;
-          return;
-        }
-      } else {
-        sibling = parent->l_;
-        if( color(sibling) == RED ) {
-          rotate_to_right(parent);
-          sibling->tag_ = BLACK;
-          parent->tag_ = RED;
-          sibling = parent->l_;
-        }
-        //so now im pretty sure sibling is black
-        if(color(sibling->l_) == BLACK && color(sibling->r_) == BLACK) {
-          sibling->tag_ = RED;
-          if( color(parent) == RED ) {
-            parent->tag_ = BLACK;
-            return;
-          }
-          n = parent;
-        } else {
-          if(color(sibling->l_) == BLACK) {
-            rotate_to_left(sibling);
-            sibling->tag_ = RED;
-            sibling->p_->tag_ = BLACK;
-            sibling = sibling->p_;
-          }
-          rotate_to_right(parent);
-          sibling->tag_ = parent->tag_;
-          parent->tag_ = BLACK;
-          sibling->l_->tag_ = BLACK;
-          return;
-        }
+      auto clr = color(n);
+      node* orphan = n->l_;
+      node* p = n->p_;
+      n->l_ = to_delete->l_;
+      n->r_ = to_delete->r_;
+      n->l_->p_ = n->r_->p_ = n;
+      n->tag_ = to_delete->tag_;
+      replace_by(to_delete,n);
+      p->r_ = orphan;
+      if(orphan != sink()) {
+        orphan->p_ = p;
+        orphan->tag_ = BLACK;
+        goto REPAIR_DONE;
+      } else if(clr == RED) {
+        goto REPAIR_DONE;
       }
+      n = p;
     }
+    erase_fix(n);
+REPAIR_DONE:
+    delete to_delete;
   }
-  void eraseFix(node* n) {
+  void erase_fix(node* n) {
+    node* db= sink();
+    while(n) {
+      int idx = n->r_ == db;
+      node* sibling = n->children_[!idx];
+      if(color(n) == RED) {
+      } else if(color(sibling) == RED) {
+        n->tag_ = RED;
+        sibling->tag_ = BLACK;
+        if(!idx) rotate_to_left(n);
+        else rotate_to_right(n);
+        sibling = n->children_[!idx];
+      } else if(color(sibling->l_) + color(sibling->r_) == BLACK) {
+        sibling->tag_ = RED;
+        db = n;
+        n = n->p_;
+        continue;
+      }
+      if(color(sibling) == RED) {
+        cout<<"fucking disaster"<<endl;
+      }
+      if(color(sibling->l_) + color(sibling->r_) == BLACK) {
+        sibling->tag_ = RED;
+        n->tag_ = BLACK;
+        return;
+      }
+      auto clr = color(n);
+      n->tag_ = BLACK;
+      if(color( sibling->children_[!idx] ) == BLACK) { // zig-zag
+        if(!idx) promote_rl(n);
+        else promote_lr(n);
+      } else {
+        sibling->children_[!idx]->tag_ = BLACK;
+        if(!idx) rotate_to_left(n);
+        else rotate_to_right(n);
+      }
+      n->p_->tag_ = clr;
+      return;
+    }
   }
   static void collect(node* n, vector<type>& result) {
     if(n == sink())return;
