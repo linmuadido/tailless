@@ -21,6 +21,8 @@ const static uint32_t run = TEST_SIZE;
 using tut = set<int>;
 #elif defined (TEST_BST)
 using tut = bst<int>;
+#elif defined (TEST_TH_BST)
+using tut = threaded_bst<int>;
 #elif defined (TEST_AVL)
 using tut = avl<int>;
 #elif defined (TEST_BIDIR_AVL)

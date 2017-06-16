@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 
 #ifndef NDEBUG
 inline void check_point(const char* filename, const int32_t line) {
