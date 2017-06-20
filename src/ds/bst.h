@@ -57,49 +57,24 @@ class bst {
     return insert( n->data_ < t ? n->r_ : n->l_ , t);
   }
 //#define PER_STEP_VERIFY
-#ifndef PER_STEP_VERIFY
-  static
-#endif
-  bool erase_node(node*& n) {
-#ifdef PER_STEP_VERIFY
-    std::vector<type> v1 = collect();
-#endif
+  static bool erase_node(node*& n) {
     node* to_delete = n;
     if((n->ptr_vals_[0] & n->ptr_vals_[1]) || n->ptr_vals_[0] * n->ptr_vals_[1]) {
       node** to_replace, *n2;
-#if 0 // always replace with node from left subtree
-      to_replace= &n->l_;
-      n2 = n->l_;
-      while(n2->r_) to_replace = &n2->r_, n2 = n2->r_;
-      *to_replace = n2->l_;
-#else
+
+      //introduce some randomness : use pointer value to determine predecessor or sucessor
       int idx = (n->l_ < n->r_);
       to_replace= &n->children_[!idx];
       n2 = n->children_[!idx];
       while(n2->children_[idx]) to_replace = &n2->children_[idx], n2 = n2->children_[idx];
       *to_replace = n2->children_[!idx];
-#endif
+
       n2->l_ = n->l_;
       n2->r_ = n->r_;
       n = n2;
     } else {
       n = (node*)(n->ptr_vals_[0] ^ n->ptr_vals_[1]);
     }
-#ifdef PER_STEP_VERIFY
-    std::vector<type> v2 = collect();
-    if(v1.size() != v2.size()+1) {
-      cout<<"size error: "<<v1.size() << " vs " << v2.size() <<endl;
-      exit(1);
-    }
-    for(int i=0, j=0;i<v1.size();++i) {
-      if(v1[i] != v2[j]) {
-        if(to_delete->data_ != v1[i]) {
-          cout<<"data error"<<endl;
-          exit(1);
-        }
-      } else ++j;
-    }
-#endif
     delete to_delete;
     return true;
   }
@@ -153,23 +128,6 @@ class threaded_bst {
     if(arr[idx] == threaded_sink()) {
       sink()->children_[!idx] = make_thread(new_node);
     }
-#if 0
-    vector<type> v1, v2;
-    collect_recur(root(),v1);
-    collect_threaded(sink()->r_,v2);
-    if(v1.size() - v2.size()) {
-      cout<<"inconsistent size" << endl;
-      for(auto x : v1)cout<<x<<' ';cout<<endl;
-      for(auto x : v2)cout<<x<<' ';cout<<endl;
-      exit(1);
-    }
-    for(int i=0;i<v1.size();++i) {
-      if(v1[i] != v2[i]) {
-        cout << "out of order" << endl;
-        exit(1);
-      }
-    }
-#endif
     return true;
   }
   bool erase(const type& t) {
