@@ -37,6 +37,7 @@ using tut = splay_tree<int>;
 /*nothing*/
 #else
 #pragma message ("type under test not specified...fall back to std")
+#define TEST_STD
 using tut = set<int>;
 #endif
 
@@ -47,7 +48,10 @@ void __attribute__((noinline)) once(tut& t, int x) {
 #endif
 using golden = set<int>;
 
-void verify(golden& g, tut& t) {
+
+#if !defined(TEST_STD) && !defined(TEST_BASE)
+template<class golden, class type>
+void verify(golden& g, type& t) {
   auto v = t.collect();
   if(v.size() !=g.size()) {
     cout<<"inconsisent size against golden"<<endl;
@@ -97,6 +101,9 @@ void test() {
   }
 
 }
+#else
+void test(){}
+#endif
 
 
 int main(int argc, char** argv) {

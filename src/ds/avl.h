@@ -72,11 +72,8 @@ class avl {
       return true;
     }
     return true;
-    //easy implementation...20% slower
-    return insert(root_,t);
   }
   bool erase(const type& t) {
-    //return erase(root_,t);
 
     //if(root_ == sink())return false;
 
@@ -281,111 +278,6 @@ REPAIR_DONE:
     int a = height(n->l_);
     int b = height(n->r_);
     n->tag_ = (a+b+3)>>1;
-  }
-  static bool insert(node*& n, const type& t) {
-    if( n == sink() ) {
-      n = new node(t,sink(),sink(),1);
-      return true;
-    }
-    if( n->data_ == t) return false;
-    //if(!insert(n->data_ < t ? n->r_ : n->l_, t)) return false;
-    if( n->data_ <  t) {
-      if(!insert(n->r_,t))return false;
-      if(height(n->r_) > height(n->l_) +1 ) {
-        if(height(n->r_->l_) > height(n->r_->r_)) rotate_to_right(n->r_);
-        rotate_to_left(n);
-      } else update_height(n);
-    } else {
-      if(!insert(n->l_,t))return false;
-      if(height(n->l_) > height(n->r_) +1 ) {
-        if(height(n->l_->r_) > height(n->l_->l_)) rotate_to_left(n->l_);
-        rotate_to_right(n);
-      } else update_height(n);
-    }
-    //update_height(n);
-    return true;
-  }
-  bool erase(node*& n, const type& t) {
-    if( n == sink() ) return false;
-    if( n->data_ == t) {
-
-      node* toDelete = n;
-      if(n->l_ == sink()) {
-        n = n->r_;
-        if(n != sink()) n->tag_ = height(n->r_) + 1;
-      }
-      else if(n->r_ == sink()) {
-        n = n->l_;
-        if(n!= sink()) n->tag_ = height(n->l_) + 1;
-      }
-      else if(n->r_->l_ == sink()) {
-        n->r_->l_ = n->l_;
-        n = n->r_;
-        update_height(n);
-      } else if(n->l_->r_ == sink()) {
-        n->l_->r_ = n->r_;
-        n = n->l_;
-        update_height(n);
-      } else {
-        replace_by_leftmost(n->r_->l_,n);
-        check_n_fix(n->r_);
-      }
-      check_n_fix(n);
-      delete toDelete;
-      return true;
-    }
-    if(n->data_ < t) {
-      if(!erase(n->r_,t)) return false;
-      if(height(n->l_) > height(n->r_) +1) {
-        if(height(n->l_->r_) > height(n->l_->l_)) rotate_to_left(n->l_);
-        rotate_to_right(n);
-      } else {
-        update_height(n);
-      }
-    } else {
-      if(!erase(n->l_,t)) return false;
-      if(height(n->r_) > height(n->l_) +1 ) {
-        if(height(n->r_->l_) > height(n->r_->r_)) rotate_to_right(n->r_);
-        rotate_to_left(n);
-      } else {
-        update_height(n);
-      }
-    }
-      //check_n_fix(n);
-    return true;
-  }
-  static void check_n_fix(node*& n) {
-    if(n==sink())return;
-    update_height(n);
-    int a = height(n->l_);
-    int b = height(n->r_);
-    if(a-b >1) {
-      if(height(n->l_->r_) > height(n->l_->l_)) rotate_to_left(n->l_);
-      rotate_to_right(n);
-    } else if( b-a >1) {
-      if(height(n->r_->l_) > height(n->r_->r_)) rotate_to_right(n->r_);
-      rotate_to_left(n);
-    }
-  }
-  static void replace_by_leftmost(node*& n, node*& top) {
-    //cout<<n->data_<<endl;
-    if(n->l_ == sink()) {
-      //cout<<"reaching end: right is ";
-      //if(n->r_ == NULL) cout<<"(NULL)"<<endl;
-      //else cout<<n->r_->data_<<endl;
-      node* tmp = top;
-      top = n;
-      n = n->r_;
-      top->l_ = tmp->l_;
-      top->r_ = tmp->r_;
-      top->tag_ = tmp->tag_;
-      return;
-    }
-    //cout<<"keeping going: right is ";
-    //if(n->r_ == NULL) cout<<"(NULL)"<<endl;
-    //else cout<<n->r_->data_<<endl;
-    replace_by_leftmost(n->l_,top);
-    check_n_fix(n);
   }
   static void collect(node* n, vector<type>& result) {
     if(n == sink())return;
