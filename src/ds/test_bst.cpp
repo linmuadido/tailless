@@ -45,10 +45,63 @@ void __attribute__((noinline)) once(tut& t, int x) {
   t.insert(x);
 }
 #endif
+using golden = set<int>;
+
+void verify(golden& g, tut& t) {
+  auto v = t.collect();
+  if(v.size() !=g.size()) {
+    cout<<"inconsisent size against golden"<<endl;
+    exit(1);
+  }
+  int idx = 0;
+  for(auto x : g) {
+    if(v[idx++] == x) {
+      continue;
+    }
+    cout<<"inconsistent order against golden"<<endl;
+    exit(1);
+  }
+}
+//TODO: separate "test" and "benchmark"
+void test() {
+  golden g;
+  tut t;
+  const static int RUN = 1<< 10;
+  vector<int> arr;
+  for(int i=0;i<RUN;++i) arr.push_back(rand());
+  for(auto x : arr) {
+    g.insert(x);
+    t.insert(x);
+    verify(g,t);
+  }
+  for(int i=0;i<RUN;++i) swap(arr[i],arr[rand()%(0u+RUN)]);
+  for(auto x : arr) {
+    if(g.erase(x) != t.erase(x)) {
+      cout<<"erasing return value broken..."<<endl;      
+    }
+    verify(g,t);
+  }
+  arr.clear();
+  arr = {1,3,2,4};
+  for(int i=0;i<RUN;++i) arr.push_back(rand());
+  for(auto x : arr) {
+    g.insert(x);
+    t.insert(x);
+    verify(g,t);
+  }
+  for(auto x : arr) {
+    if(g.erase(x) != t.erase(x)) {
+      cout<<"erasing return value broken..."<<endl;      
+    }
+    verify(g,t);
+  }
+
+}
 
 
 int main(int argc, char** argv) {
 
+  //for(int i=0;i<(1<<10);++i) test();
 
   vector<int> v(run);
   for(auto& x : v) x = rand();

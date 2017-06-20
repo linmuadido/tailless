@@ -3,6 +3,7 @@
 #include <vector>
 #include <iostream>
 #include "./tree_node.h"
+#include "helper/debug.h"
 using namespace std;
 
 
@@ -123,30 +124,27 @@ template<typename type>
 class threaded_bst {
   typedef simple_node<type> node;
   public:
-  threaded_bst() : root_(threaded_sink()) {
-    sink()->l_ = sink()->r_ = threaded_sink();
+  threaded_bst() {
+    root() = sink()->l_ = sink()->r_ = threaded_sink();
   }
   bool insert(const type& t) {
-    //could assign p = sink() and n = root_ to handle the corner case
-    if(root_ == threaded_sink() ) {
-      root_ = new node(t,threaded_sink(),threaded_sink());
-      sink()->l_ = sink()->r_ = make_thread(root_);
+    if(root() == threaded_sink()) {
+      root() = new node(t,threaded_sink(),threaded_sink());
+      sink()->l_ = sink()->r_ = make_thread(root());
       return true;
     }
     int idx;
     node* p;
-    node* n = root_;
-    while(true) {
+    node* n = root();
+    do {
       if(n->data_ < t) {
         idx = 1;
       } else if(t < n->data_) {
         idx = 0;
       } else return false;
       p = n;
-      uintptr_t val = n->ptr_vals_[idx];
-      if(val&1) break;
-      n = (node*)(val);
-    }
+      n = n->children_[idx];
+    } while(is_threaded(n) == false);
     node* arr[2];
     arr[idx] = p->children_[idx];
     arr[!idx] = make_thread(p);
@@ -157,7 +155,7 @@ class threaded_bst {
     }
 #if 0
     vector<type> v1, v2;
-    collect_recur(root_,v1);
+    collect_recur(root(),v1);
     collect_threaded(sink()->r_,v2);
     if(v1.size() - v2.size()) {
       cout<<"inconsistent size" << endl;
@@ -175,35 +173,67 @@ class threaded_bst {
     return true;
   }
   bool erase(const type& t) {
-    node* p = sink();
-    node* n = root_;
-    int idx;
-    while(n != threaded_sink()) {
-      if(n->data_ < t) {
-        idx = 1;
-      } else if( t < n->data_ ) {
-        idx = 0;
-      } else {
-        return erase(p,n,idx);
-      }
+    node* p = source();
+    node* n = root();
+    int idx = 1;
+    while( !is_threaded(n) ) {
+      if(n->data_ < t) idx = 1;
+      else if(t < n->data_) idx = 0;
+      else return erase(p,n,idx);
+      p = n;
+      n = n->children_[idx];
     }
     return false;
   }
   bool erase(node* p, node* n, int idx) {
     node* to_delete = n;
-    if(is_threaded(n->l_) && is_threaded(n->r_)) {
-      if(n == root_) {
-        root_ = sink()->l_ = sink()->r_ = threaded_sink();
+    bool thl = is_threaded(n->l_);
+    bool thr = is_threaded(n->r_);
+    if(thl && thr) {
+      if(p == source()) {
+        root() = sink()->l_ = sink()->r_ = threaded_sink();
       } else {
+        if(n->children_[idx] == threaded_sink()) {
+          sink()->children_[!idx] = make_thread(p);
+        }
         p->children_[idx] = n->children_[idx];
       }
-    } else if(is_threaded(n->l_) != is_threaded(n->r_)) {
-      int idx2=  is_threaded(n->l_);
+    } else { //note: thl ^ thr holds
+      int idx2 = thl;
+      node* p2 = n, *n2 = n->children_[idx2];
+      while( !is_threaded(n2->children_[!idx2]) ) {
+        p2 = n2;
+        n2 = n2->children_[!idx2];
+      }
+      if(p2 == n) {
+        if(n->children_[!idx2] == threaded_sink()) {
+          sink()->children_[idx2] = make_thread(n2);
+        }
+        n2->children_[!idx2] = n->children_[!idx2];
+        p->children_[idx] = n2;
+      } else {
+        if(is_threaded(n2->children_[idx2])) p2->children_[!idx2] = make_thread(n2);
+        else p2->children_[!idx2] = n2->children_[idx2];
+        if(!is_threaded(n->children_[!idx2])) {
+          node* tmp = n->children_[!idx2];
+          while( !is_threaded(tmp->children_[idx2]) ) {
+            tmp = tmp->children_[idx2];
+          }
+          tmp->children_[idx2] = make_thread(n2);
+        } else if(n->children_[!idx2] == threaded_sink()) {
+          sink()->children_[idx2] = make_thread(n2);
+        }
+        n2->l_ = n->l_;
+        n2->r_ = n->r_;
+        p->children_[idx] = n2;
+      }
     }
+    delete to_delete;
+    return true;
   }
   vector<type> collect() const {
     vector<type> ret;
-    collect(root_,ret);
+    collect_threaded(sink()->r_,ret);
     return ret;
   }
   private:
@@ -215,18 +245,14 @@ class threaded_bst {
       char threaded_sink_[0];
     };
   };
-  node *root_;
-  static node* owner_of_right(const node** child) {
-    uintptr_t ret = uintptr_t(child);
-    ret -= offsetof(node,r_);
-    return (node*)ret;
-  }
-  node* source() {
-    owner_of_right(&root_);
-  }
-  const node* source() const {
-    owner_of_right(&root_);
-  }
+  union {
+    char source_placeholder_[sizeof(node)];
+    node source_[0];
+  };
+  node* source() {return source_;}
+  const node* source() const {return source_;}
+  node*& root() {return source()->r_;}
+  node* root() const {return source()->r_;} 
   node* sink() {return sink_;}
   const node* sink() const {return sink_;}
   node* threaded_sink() {return (node*)threaded_sink_;}
