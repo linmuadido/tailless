@@ -77,6 +77,8 @@ class rain {
   std::mt19937 mt_;
 };
 
+
+
 template<class transformer, class painter>
 class render {
   public:
@@ -84,19 +86,25 @@ class render {
     const static transformer t;
     const static painter p;
     byte_map bm = t(matrix,drops,w,h);
-    std::vector<int32_t> clrs = p(matrix,drops,w,h);
+    auto clrs = p(matrix,drops,w,h);
     int32_t curr = -1;
     std::string ret = "\033[1;1H";
     for(int i=0;i<w*h;++i) {
       if(curr != clrs[i]) {
         curr = clrs[i];
-        ret += "\033[38;2;";
-        ret += std::to_string( (curr>>16)%0x100 );
-        ret += ';';
-        ret += std::to_string( (curr>>8)%0x100 );
-        ret += ';';
-        ret += std::to_string( (curr>>0)%0x100 );
+        if(sizeof(clrs[i]) == 1) {
+          ret += "\033[38;5;";
+          ret += std::to_string( curr );
+        } else {//true color
+          ret += "\033[38;2;";
+          ret += std::to_string( (curr>>16)%0x100 );
+          ret += ';';
+          ret += std::to_string( (curr>>8)%0x100 );
+          ret += ';';
+          ret += std::to_string( (curr>>0)%0x100 );
+        }
         ret += 'm';
+
       }
       ret += bm[i];
     }
@@ -121,6 +129,42 @@ class prune_n_rotate {
   }
 };
 
+class head_n_fade_256 {
+  public:
+  std::vector<uint8_t> operator()(const byte_map& matrix, const std::vector<rain_drop>& drops, int w, int h) const {
+    std::vector<uint8_t> ret(w*h,46);
+    for(int i=0;i<w;++i) {
+      const auto& d = drops[i];
+      for(int j=0;j<8;++j) {
+        const static uint8_t arr[] = {
+          0,
+          22,
+          28,
+          28,
+          34,
+          70,
+          40,
+          76,
+        };
+        if(j+d.b<0) continue;
+        if(j+d.b>=h)  break;
+        ret[(j+d.b)*w+i] = arr[j];
+      }
+      for(int j=0;j<4;++j) {
+        const static uint8_t arr[] = {
+          120,
+          157,
+          194,
+          231,
+        };
+        if(d.e-4+j<0) continue;
+        if(d.e-4+j>=h) break;
+        ret[(d.e-4+j)*w+i] = arr[j];
+      }
+    }
+    return ret;
+  }
+};
 class head_n_fade {
   public:
   std::vector<int32_t> operator()(const byte_map& matrix, const std::vector<rain_drop>& drops, int w, int h) const {
@@ -174,7 +218,11 @@ int main() {
   rain gen(w,h);
   std::vector<char> buffer(w*h*2);
   setvbuf(stdout,buffer.data(),_IOFBF,w*h*2);
+#ifdef TUTU
+  const static render<prune_n_rotate,head_n_fade_256> r;
+#else
   const static render<prune_n_rotate,head_n_fade> r;
+#endif
   while(1) {
     gen.next();
     const auto& m = gen.get_byte_map();
