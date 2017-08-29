@@ -34,4 +34,42 @@ inline void radix_sort_copy(iter b, iter e, iter out, funcs&&... fs) {
     std::copy(out,out+std::distance(b,e),b);
   }
 }
+template< typename iter>
+inline void radix_sort_swap_impl(iter b, iter e) {
+  return;
+}
+
+template< typename iter, typename func, typename... other_funcs>
+inline void radix_sort_swap_impl(iter b, iter e, func&& f, other_funcs&&... fs) {
+  size_t arr[257] = {};
+  size_t* const cnts = arr+1;
+  for(auto it = b; it != e; ++it) {
+    cnts[ f(*it) ] += 1;
+  }
+  size_t* const lower = arr;
+  union {
+    size_t arr2[257];
+    struct {
+      size_t skip;
+      size_t upper[256];
+    };
+  };
+  for(size_t tmp = 0, i=0;i<256;++i) {
+    placeholder[i] = lower[i] = tmp += arr[i];
+  }
+  for(auto it = b; it != e;) {
+    size_t& idx = lower[f(*it)];
+    size_t bound = upper[f(*it)];
+    if(idx < bound) {
+      ++it;
+    } else {
+      std::swap(*(b+idx++),*it);
+    }
+  }
+  radix_sort_swap_impl( b,e,std::forward<other_func>(fs)... );
+}
+template< typename iter, typename...funcs>
+inline void radix_sort_swap(iter b, iter e, funcs&&... fs) {
+  radix_sort_swap_impl(b,e,std::forward<funcs>(fs)...);
+}
 }
