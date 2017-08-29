@@ -72,4 +72,12 @@ template< typename iter, typename...funcs>
 inline void radix_sort_swap(iter b, iter e, funcs&&... fs) {
   radix_sort_swap_impl(b,e,std::forward<funcs>(fs)...);
 }
+
+template< typename iter>
+inline void heap_sort(iter b, iter e) {
+}
+
+
+
+
 }
