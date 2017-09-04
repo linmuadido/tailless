@@ -52,10 +52,11 @@ inline void radix_sort_swap_impl(iter b, iter e, func&& f, other_funcs&&... fs) 
     struct {
       size_t skip;
       size_t upper[256];
-    };
+    } s;
   };
+  auto&& upper = s.upper;
   for(size_t tmp = 0, i=0;i<256;++i) {
-    placeholder[i] = lower[i] = tmp += arr[i];
+    arr2[i] = lower[i] = tmp += arr[i];
   }
   for(auto it = b; it != e;) {
     size_t& idx = lower[f(*it)];
@@ -66,7 +67,7 @@ inline void radix_sort_swap_impl(iter b, iter e, func&& f, other_funcs&&... fs) 
       std::swap(*(b+idx++),*it);
     }
   }
-  radix_sort_swap_impl( b,e,std::forward<other_func>(fs)... );
+  radix_sort_swap_impl( b,e,std::forward<other_funcs>(fs)... );
 }
 template< typename iter, typename...funcs>
 inline void radix_sort_swap(iter b, iter e, funcs&&... fs) {
@@ -75,9 +76,9 @@ inline void radix_sort_swap(iter b, iter e, funcs&&... fs) {
 
 template< typename iter>
 inline void heap_sort(iter b, iter e) {
+  using std::make_heap;
+  using std::pop_heap;
+  make_heap(b,e);
+  while(b<e) pop_heap(b,e--);
 }
-
-
-
-
 }
