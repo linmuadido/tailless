@@ -9,12 +9,12 @@ using namespace leo;
 
 const static size_t SZ = 1<<26;
 #define INIT_TEST(type) \
-do { std::vector<type> v(SZ),v2(SZ);for(auto& x:v) x=rand(); \
-const char* TEST_NAME = TEST_CAT #type;\
+do { std::vector<type> v(SZ),v2(SZ);uint64_t xor_key = 0;for(auto& x:v) xor_key ^= x=rand(); \
+const char* TEST_NAME = TEST_CAT "<"#type">";\
 start_profile_nonrecur(TEST_NAME);
 #define UNINIT_TEST() \
 stop_profile_nonrecur(); \
-for(size_t i = 1;i<SZ;++i) if(v[i] < v[i-1]) return std::string( TEST_NAME )+" failed";\
+for(size_t i = 1;i<SZ;++i) if(v[i] < v[i-1]) return std::string( TEST_NAME )+" failed";else xor_key ^= v[i];if(xor_key != v[0]) return std::string( TEST_NAME )+" failed";\
 }while(false);
 #define TEST_CAT "radix sort"
 
@@ -61,7 +61,8 @@ std::string radix_sort_test() {
 
   return TEST_CAT" passed";
 }
-
+#undef TEST_CAT
+#define TEST_CAT "std::sort"
 std::string std_sort_test() {
 #define STD_TEST(type) \
   INIT_TEST(type);\
@@ -73,13 +74,32 @@ std::string std_sort_test() {
   STD_TEST(int8_t);
   STD_TEST(int16_t);
   STD_TEST(int32_t);
+#undef STD_TEST
   return TEST_CAT" passed";
 }
+#undef TEST_CAT
+#define TEST_CAT "std::heap_sort"
+std::string std_heap_sort_test() {
+#define HS_TEST(type) \
+  INIT_TEST(type);\
+  heap_sort(v.begin(),v.end());\
+  UNINIT_TEST();
+  HS_TEST(uint8_t);
+  HS_TEST(uint16_t);
+  HS_TEST(uint32_t);
+  HS_TEST(int8_t);
+  HS_TEST(int16_t);
+  HS_TEST(int32_t);
+#undef HS_TEST
+  return TEST_CAT" passed";
+}
+#undef TEST_CAT
 
 using std::cout;
 using std::endl;
 int main() {
   cout << radix_sort_test() << endl;
   cout << std_sort_test() <<endl;
+  cout << std_heap_sort_test() <<endl;
   return 0;
 }
